@@ -386,8 +386,24 @@ public final class JREUtils {
         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
 
         //Add automatically generated args
-        userArgs.add("-Xms" + AllSettings.getRamAllocation().getValue().getValue() + "M");
-        userArgs.add("-Xmx" + AllSettings.getRamAllocation().getValue().getValue() + "M");
+        final int xmx = AllSettings.getRamAllocation().getValue().getValue();
+        // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
+        // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
+        final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;
+        userArgs.add("-Xms" + (lowRam ? Math.min(xmx, 256) : xmx) + "M");
+        userArgs.add("-Xmx" + xmx + "M");
+        if (lowRam) {
+            boolean userSetGc = false;
+            boolean userSetCodeCache = false;
+            for (String a : userArgs) {
+                if (a.startsWith("-XX:+Use") && a.endsWith("GC")) userSetGc = true;
+                if (a.startsWith("-XX:ReservedCodeCacheSize")) userSetCodeCache = true;
+            }
+            if (!userSetGc) userArgs.add("-XX:+UseSerialGC");
+            if (!userSetCodeCache) userArgs.add("-XX:ReservedCodeCacheSize=64m");
+            userArgs.add("-XX:-UsePerfData");
+            Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB)");
+        }
         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
 
         // Force LWJGL to use the Freetype library intended for it, instead of using the one

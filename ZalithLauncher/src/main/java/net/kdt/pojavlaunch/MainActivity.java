@@ -176,7 +176,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         binding.mainControlLayout.setMenuListener(this);
 
         binding.mainDrawerOptions.setScrimColor(Color.TRANSPARENT);
-        binding.mainDrawerOptions.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        updateDrawerLock();
 
         try {
             File latestLogFile = new File(PathManager.DIR_GAME_HOME, "latestlog.txt");
@@ -487,6 +487,14 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         navigationView.requestLayout();
     }
 
+    /** When the gear button is hidden, allow opening the menu by swiping from the right edge. */
+    private void updateDrawerLock() {
+        binding.mainDrawerOptions.setDrawerLockMode(
+                AllSettings.getGameMenuHideButton().getValue()
+                        ? DrawerLayout.LOCK_MODE_UNLOCKED
+                        : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+    }
+
     @Override
     public void exitEditor() {
         try {
@@ -556,6 +564,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             //初始化Switch的状态
             this.binding.openMemoryInfo.setChecked(AllSettings.getGameMenuShowMemory().getValue());
             this.binding.openFpsInfo.setChecked(AllSettings.getGameMenuShowFPS().getValue());
+            this.binding.hideMenuButton.setChecked(AllSettings.getGameMenuHideButton().getValue());
             this.binding.disableGestures.setChecked(AllSettings.getDisableGestures().getValue());
             this.binding.disableDoubleTap.setChecked(AllSettings.getDisableDoubleTap().getValue());
             this.binding.enableGyro.setChecked(AllSettings.getEnableGyro().getValue());
@@ -573,6 +582,8 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             this.binding.openMemoryInfoLayout.setOnClickListener(this);
             this.binding.openFpsInfo.setOnCheckedChangeListener(this);
             this.binding.openFpsInfoLayout.setOnClickListener(this);
+            this.binding.hideMenuButton.setOnCheckedChangeListener(this);
+            this.binding.hideMenuButtonLayout.setOnClickListener(this);
 
             this.binding.resolutionScaler.setOnSeekBarChangeListener(this);
             this.binding.resolutionScalerRemove.setOnClickListener(this);
@@ -680,6 +691,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             else if (v == binding.sendCustomKey) dialogSendCustomKey();
             else if (v == binding.openMemoryInfoLayout) MenuUtils.toggleSwitchState(binding.openMemoryInfo);
             else if (v == binding.openFpsInfoLayout) MenuUtils.toggleSwitchState(binding.openFpsInfo);
+            else if (v == binding.hideMenuButtonLayout) MenuUtils.toggleSwitchState(binding.hideMenuButton);
             else if (v == binding.resolutionScalerRemove) MenuUtils.adjustSeekbar(binding.resolutionScaler, -1);
             else if (v == binding.resolutionScalerAdd) MenuUtils.adjustSeekbar(binding.resolutionScaler, 1);
             else if (v == binding.disableGesturesLayout) MenuUtils.toggleSwitchState(binding.disableGestures);
@@ -757,6 +769,10 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             } else if (v == binding.openFpsInfo) {
                 AllSettings.getGameMenuShowFPS().put(isChecked).save();
                 mGameMenuWrapper.refreshSettingsState();
+            } else if (v == binding.hideMenuButton) {
+                AllSettings.getGameMenuHideButton().put(isChecked).save();
+                mGameMenuWrapper.refreshSettingsState();
+                updateDrawerLock();
             } else if (v == binding.disableGestures) {
                 refreshLayoutVisible(binding.timeLongPressTriggerLayout, !isChecked);
                 AllSettings.getDisableGestures().put(isChecked).save();

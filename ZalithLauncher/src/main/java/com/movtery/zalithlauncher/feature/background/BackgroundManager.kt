@@ -74,6 +74,23 @@ object BackgroundManager {
             .into(CallbackDrawableImageViewTarget(backgroundView, callback))
     }
 
+    private val VIDEO_EXTENSIONS = setOf("mp4", "webm", "mkv", "3gp", "mov")
+
+    @JvmStatic
+    fun isVideo(file: File?): Boolean {
+        if (file == null || file.isDirectory) return false
+        return file.extension.lowercase() in VIDEO_EXTENSIONS
+    }
+
+    /** The selected video for this background type, or null if none (or the selection is an image). */
+    @JvmStatic
+    fun getBackgroundVideo(backgroundType: BackgroundType): File? {
+        if (!hasBackgroundImage(backgroundType)) return null
+        val name = properties[backgroundType.name] as String
+        val file = File(PathManager.DIR_BACKGROUND, name)
+        return if (file.exists() && isVideo(file)) file else null
+    }
+
     @JvmStatic
     fun clearBackgroundImage(
         backgroundView: ImageView

@@ -141,6 +141,10 @@ class AllSettings {
         @JvmStatic
         val gameMenuAlpha = IntSettingUnit("gameMenuAlpha", 100)
 
+        /** Hide the floating gear button in game (menu can still be opened by swiping from the right edge) */
+        @JvmStatic
+        val gameMenuHideButton = BooleanSettingUnit("gameMenuHideButton", false)
+
         // Launcher
         @JvmStatic
         val checkLibraries = BooleanSettingUnit("checkLibraries", true)

@@ -540,6 +540,8 @@
     <string name="setting_game_menu_location_left_or_bottom">Bottom Left</string>
     <string name="setting_game_menu_location_right_or_top">Top Right</string>
     <string name="setting_game_menu_location_right_or_bottom">Bottom Right</string>
+    <string name="setting_game_menu_hide_button_title">Hide floating menu button</string>
+    <string name="setting_game_menu_hide_button_desc">Hide the gear button in game. Swipe from the right edge of the screen to open the menu.</string>
     <string name="setting_game_menu_alpha_title">Floating Window Opacity</string>
     <string name="setting_game_menu_alpha_desc">Set the opacity of the game menu floating window</string>
     <string name="setting_reboot_tip">This setting has been changed, but requires the app to be restarted to take effect!</string>

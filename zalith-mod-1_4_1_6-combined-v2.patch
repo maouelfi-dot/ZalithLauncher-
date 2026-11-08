@@ -1,0 +1,1817 @@
+diff --git a/ZalithLauncher/gradle.properties b/ZalithLauncher/gradle.properties
+index 873f312..2da430b 100644
+--- a/ZalithLauncher/gradle.properties
++++ b/ZalithLauncher/gradle.properties
+@@ -1,5 +1,5 @@
+ launcher_name=ZalithLauncher
+ launcher_app_name=Zalith Launcher
+ 
+-launcher_version_code=141400
+-launcher_version_name=1.4.1.4
+\ No newline at end of file
++launcher_version_code=141600
++launcher_version_name=1.4.1.6
+\ No newline at end of file
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt
+new file mode 100644
+index 0000000..159cf7b
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt
+@@ -0,0 +1,270 @@
++package com.movtery.zalithlauncher.feature.accounts
++
++import android.graphics.Bitmap
++import android.graphics.BitmapFactory
++import android.util.Base64
++import com.movtery.zalithlauncher.feature.log.Logging
++import com.movtery.zalithlauncher.utils.path.PathManager
++import net.kdt.pojavlaunch.value.MinecraftAccount
++import org.json.JSONArray
++import org.json.JSONObject
++import java.io.ByteArrayOutputStream
++import java.io.File
++import java.io.InputStream
++import java.net.InetAddress
++import java.net.ServerSocket
++import java.net.Socket
++import java.net.URLDecoder
++import java.security.KeyPair
++import java.security.KeyPairGenerator
++import java.security.MessageDigest
++import java.security.Signature
++import java.util.concurrent.ConcurrentHashMap
++
++/**
++ * Tiny local Yggdrasil-compatible skin server so offline accounts can show a custom skin in game.
++ * Used together with authlib-injector (`-javaagent:authlib-injector.jar=http://localhost:PORT`).
++ *
++ * No extra dependencies: plain ServerSocket + org.json. Only serves 127.0.0.1.
++ * The design (endpoints, signed "textures" property) follows the public authlib-injector
++ * server protocol, the same one HMCL / Zalith Launcher 2 use for offline skins.
++ */
++object OfflineSkinServer {
++    private const val TAG = "OfflineSkinServer"
++
++    private class Character(val uuid: String, val name: String, val skin: ByteArray, val hash: String, val slim: Boolean)
++
++    private val byUuid = ConcurrentHashMap<String, Character>()
++    private val byName = ConcurrentHashMap<String, Character>()
++    private var serverSocket: ServerSocket? = null
++    private val keyPair: KeyPair by lazy {
++        KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
++    }
++
++    fun skinFileOf(account: MinecraftAccount): File = File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".png")
++
++    private fun modelFileOf(account: MinecraftAccount): File = File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model")
++
++    /** The chosen arm model: "classic" (Steve), "slim" (Alex) or null for automatic detection. */
++    @JvmStatic
++    fun getModel(account: MinecraftAccount): String? = runCatching {
++        modelFileOf(account).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it == "classic" || it == "slim" }
++    }.getOrNull()
++
++    /** Saves the arm model for this account ("classic" / "slim"); null goes back to automatic detection. */
++    @JvmStatic
++    fun setModel(account: MinecraftAccount, model: String?) {
++        runCatching {
++            val file = modelFileOf(account)
++            if (model == null) file.delete() else {
++                file.parentFile?.mkdirs()
++                file.writeText(model)
++            }
++        }.onFailure { Logging.e(TAG, "Failed to save skin model: ${it.message}") }
++    }
++
++    /** Removes the custom skin and its model choice. */
++    @JvmStatic
++    fun resetSkin(account: MinecraftAccount) {
++        skinFileOf(account).delete()
++        modelFileOf(account).delete()
++    }
++
++    /**
++     * Starts the server (if needed) and registers the account's local skin.
++     * @return the port, or null if the account has no custom skin / the server failed to start.
++     */
++    @JvmStatic
++    @Synchronized
++    fun prepare(account: MinecraftAccount): Int? {
++        val file = skinFileOf(account)
++        if (!file.isFile) return null
++        return runCatching {
++            val bytes = file.readBytes()
++            val uuid = account.profileId.replace("-", "").lowercase()
++            val slim = when (getModel(account)) {
++                "slim" -> true
++                "classic" -> false
++                else -> isSlimSkin(bytes)
++            }
++            val character = Character(uuid, account.username, bytes, sha256Hex(bytes), slim)
++            byUuid[uuid] = character
++            byName[account.username.lowercase()] = character
++
++            if (serverSocket == null || serverSocket!!.isClosed) {
++                val socket = ServerSocket(0, 20, InetAddress.getByName("127.0.0.1"))
++                serverSocket = socket
++                Thread({ acceptLoop(socket) }, "OfflineSkinServer").apply { isDaemon = true }.start()
++                // Generating a 2048-bit RSA key can take several seconds on a slow phone. Do it now, in the
++                // background, so the game's first request to the server is not stuck waiting for it.
++                Thread({ keyPair }, "OfflineSkinServer-key").apply { isDaemon = true }.start()
++            }
++            Logging.i(TAG, "Serving skin for ${account.username} (slim=${character.slim}) on port ${serverSocket!!.localPort}")
++            serverSocket!!.localPort
++        }.onFailure { Logging.e(TAG, "Failed to start offline skin server: ${it.message}") }.getOrNull()
++    }
++
++    /** Validates a skin image: PNG, width multiple of 64, height equal to width or half of it. */
++    @JvmStatic
++    fun isValidSkin(bytes: ByteArray): Boolean {
++        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
++        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
++        val w = opts.outWidth
++        val h = opts.outHeight
++        return w >= 64 && w % 64 == 0 && (h == w || h * 2 == w)
++    }
++
++    /** Slim ("Alex") arms leave the columns x=54..55, y=20..31 (at 64px scale) transparent. */
++    private fun isSlimSkin(bytes: ByteArray): Boolean {
++        val bmp: Bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
++        return try {
++            if (bmp.width != bmp.height) return false // legacy 64x32 skins are always classic
++            val s = bmp.width / 64
++            for (x in 54 * s until 56 * s) for (y in 20 * s until 32 * s) {
++                if ((bmp.getPixel(x, y) ushr 24) != 0) return false
++            }
++            true
++        } finally {
++            bmp.recycle()
++        }
++    }
++
++    private fun acceptLoop(socket: ServerSocket) {
++        while (!socket.isClosed) {
++            val client = try { socket.accept() } catch (_: Exception) { return }
++            Thread({ handle(client) }, "OfflineSkinServer-conn").apply { isDaemon = true }.start()
++        }
++    }
++
++    private fun handle(client: Socket) {
++        client.use { c ->
++            runCatching {
++                c.soTimeout = 10_000
++                val input = c.getInputStream()
++                val requestLine = readLine(input) ?: return
++                val parts = requestLine.split(" ")
++                if (parts.size < 2) return
++                val method = parts[0]
++                var contentLength = 0
++                while (true) {
++                    val line = readLine(input) ?: break
++                    if (line.isEmpty()) break
++                    if (line.startsWith("content-length:", ignoreCase = true)) contentLength = line.substring(15).trim().toIntOrNull() ?: 0
++                }
++                val body = if (contentLength > 0) ByteArray(minOf(contentLength, 1 shl 20)).also { readFully(input, it) } else ByteArray(0)
++
++                val rawPath = parts[1]
++                val path = rawPath.substringBefore('?')
++                val query = parseQuery(rawPath.substringAfter('?', ""))
++                route(c, method, path, query, body)
++            }.onFailure { Logging.e(TAG, "Request failed: ${it.message}") }
++        }
++    }
++
++    private fun route(c: Socket, method: String, path: String, query: Map<String, String>, body: ByteArray) {
++        when {
++            method == "GET" && (path == "/" || path.isEmpty()) -> json(c, rootJson())
++            method == "POST" && path == "/api/profiles/minecraft" -> {
++                val names = JSONArray(String(body, Charsets.UTF_8))
++                val result = JSONArray()
++                for (i in 0 until names.length()) {
++                    byName[names.getString(i).lowercase()]?.let {
++                        result.put(JSONObject().put("id", it.uuid).put("name", it.name))
++                    }
++                }
++                json(c, result.toString())
++            }
++            method == "GET" && path == "/sessionserver/session/minecraft/hasJoined" -> {
++                val ch = query["username"]?.lowercase()?.let { byName[it] }
++                if (ch == null) empty(c, 204) else json(c, profileJson(ch, c))
++            }
++            method == "POST" && path == "/sessionserver/session/minecraft/join" -> empty(c, 204)
++            method == "GET" && path.startsWith("/sessionserver/session/minecraft/profile/") -> {
++                val ch = byUuid[path.substringAfterLast('/').lowercase()]
++                if (ch == null) empty(c, 204) else json(c, profileJson(ch, c))
++            }
++            method == "GET" && path.startsWith("/textures/") -> {
++                val hash = path.substringAfterLast('/')
++                val ch = byUuid.values.firstOrNull { it.hash == hash }
++                if (ch == null) empty(c, 404) else respond(c, 200, "image/png", ch.skin, "Cache-Control: max-age=2592000, public\r\n")
++            }
++            else -> empty(c, 404)
++        }
++    }
++
++    private fun rootJson(): String {
++        val pem = "-----BEGIN PUBLIC KEY-----\n" +
++                Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP) + "\n-----END PUBLIC KEY-----"
++        return JSONObject()
++            .put("skinDomains", JSONArray().put("127.0.0.1").put("localhost"))
++            .put("meta", JSONObject()
++                .put("serverName", "ZalithOfflineSkin")
++                .put("implementationName", "ZalithOfflineSkin")
++                .put("implementationVersion", "1.0")
++                .put("feature.non_email_login", true))
++            .put("signaturePublickey", pem)
++            .toString()
++    }
++
++    private fun profileJson(ch: Character, c: Socket): String {
++        val root = "http://localhost:${c.localPort}"
++        val skin = JSONObject().put("url", "$root/textures/${ch.hash}")
++        if (ch.slim) skin.put("metadata", JSONObject().put("model", "slim"))
++        val textures = JSONObject()
++            .put("timestamp", System.currentTimeMillis())
++            .put("profileId", ch.uuid)
++            .put("profileName", ch.name)
++            .put("textures", JSONObject().put("SKIN", skin))
++        val encoded = Base64.encodeToString(textures.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
++        val signature = Signature.getInstance("SHA1withRSA").run {
++            initSign(keyPair.private)
++            update(encoded.toByteArray(Charsets.UTF_8))
++            Base64.encodeToString(sign(), Base64.NO_WRAP)
++        }
++        return JSONObject()
++            .put("id", ch.uuid)
++            .put("name", ch.name)
++            .put("properties", JSONArray().put(
++                JSONObject().put("name", "textures").put("value", encoded).put("signature", signature)))
++            .toString()
++    }
++
++    private fun json(c: Socket, text: String) = respond(c, 200, "application/json; charset=utf-8", text.toByteArray(Charsets.UTF_8))
++
++    private fun empty(c: Socket, code: Int) = respond(c, code, "text/plain", ByteArray(0))
++
++    private fun respond(c: Socket, code: Int, type: String, body: ByteArray, extra: String = "") {
++        val reason = when (code) { 200 -> "OK"; 204 -> "No Content"; else -> "Not Found" }
++        val head = "HTTP/1.1 $code $reason\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\n${extra}Connection: close\r\n\r\n"
++        c.getOutputStream().apply { write(head.toByteArray(Charsets.US_ASCII)); write(body); flush() }
++    }
++
++    private fun parseQuery(q: String): Map<String, String> =
++        if (q.isEmpty()) emptyMap() else q.split("&").mapNotNull {
++            val k = it.substringBefore('=')
++            if (k.isEmpty()) null else k to URLDecoder.decode(it.substringAfter('=', ""), "UTF-8")
++        }.toMap()
++
++    private fun readLine(input: InputStream): String? {
++        val out = ByteArrayOutputStream()
++        while (true) {
++            val b = input.read()
++            if (b == -1) return if (out.size() == 0) null else out.toString("ISO-8859-1")
++            if (b == '\n'.code) return out.toString("ISO-8859-1").trimEnd('\r')
++            if (out.size() > 8192) return null
++            out.write(b)
++        }
++    }
++
++    private fun readFully(input: InputStream, buf: ByteArray) {
++        var off = 0
++        while (off < buf.size) {
++            val n = input.read(buf, off, buf.size - off)
++            if (n < 0) break
++            off += n
++        }
++    }
++
++    private fun sha256Hex(data: ByteArray): String =
++        MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) }
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
+index fc80cb9..6d39fec 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
+@@ -74,6 +74,23 @@ object BackgroundManager {
+             .into(CallbackDrawableImageViewTarget(backgroundView, callback))
+     }
+ 
++    private val VIDEO_EXTENSIONS = setOf("mp4", "webm", "mkv", "3gp", "mov")
++
++    @JvmStatic
++    fun isVideo(file: File?): Boolean {
++        if (file == null || file.isDirectory) return false
++        return file.extension.lowercase() in VIDEO_EXTENSIONS
++    }
++
++    /** The selected video for this background type, or null if none (or the selection is an image). */
++    @JvmStatic
++    fun getBackgroundVideo(backgroundType: BackgroundType): File? {
++        if (!hasBackgroundImage(backgroundType)) return null
++        val name = properties[backgroundType.name] as String
++        val file = File(PathManager.DIR_BACKGROUND, name)
++        return if (file.exists() && isVideo(file)) file else null
++    }
++
+     @JvmStatic
+     fun clearBackgroundImage(
+         backgroundView: ImageView
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt
+new file mode 100644
+index 0000000..72dd248
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt
+@@ -0,0 +1,112 @@
++package com.movtery.zalithlauncher.feature.background
++
++import android.graphics.Matrix
++import android.graphics.SurfaceTexture
++import android.media.MediaPlayer
++import android.view.Surface
++import android.view.TextureView
++import android.view.View
++import com.movtery.zalithlauncher.feature.log.Logging
++import java.io.File
++
++/**
++ * Plays a muted, looping video behind the launcher UI (center-crop).
++ * Kept deliberately light for low-RAM devices: hardware-decoded MediaPlayer, no audio,
++ * released as soon as the launcher is not visible.
++ */
++class VideoBackgroundController(private val textureView: TextureView) : TextureView.SurfaceTextureListener {
++    private var player: MediaPlayer? = null
++    private var surface: Surface? = null
++    private var file: File? = null
++    private var paused = false
++
++    init {
++        textureView.surfaceTextureListener = this
++    }
++
++    /** Set (or clear with null) the video file. */
++    fun setVideo(file: File?) {
++        this.file = file
++        release()
++        if (file == null) {
++            textureView.visibility = View.GONE
++            return
++        }
++        textureView.visibility = View.VISIBLE
++        if (textureView.isAvailable && !paused) start()
++    }
++
++    fun onPause() {
++        paused = true
++        release()
++    }
++
++    fun onResume() {
++        paused = false
++        if (file != null && textureView.isAvailable) start()
++    }
++
++    fun onDestroy() {
++        file = null
++        release()
++    }
++
++    private fun start() {
++        val videoFile = file ?: return
++        if (!videoFile.exists() || player != null) return
++        val st = textureView.surfaceTexture ?: return
++        runCatching {
++            val s = Surface(st)
++            surface = s
++            player = MediaPlayer().apply {
++                setDataSource(videoFile.absolutePath)
++                setSurface(s)
++                setVolume(0f, 0f)
++                isLooping = true
++                setOnVideoSizeChangedListener { _, w, h -> applyCenterCrop(w, h) }
++                setOnPreparedListener { it.start() }
++                setOnErrorListener { _, what, extra ->
++                    Logging.e("VideoBackground", "MediaPlayer error $what/$extra")
++                    release()
++                    true
++                }
++                prepareAsync()
++            }
++        }.onFailure {
++            Logging.e("VideoBackground", "Failed to start: ${it.message}")
++            release()
++        }
++    }
++
++    private fun applyCenterCrop(videoW: Int, videoH: Int) {
++        val vw = textureView.width.toFloat()
++        val vh = textureView.height.toFloat()
++        if (videoW <= 0 || videoH <= 0 || vw <= 0f || vh <= 0f) return
++        val scale = maxOf(vw / videoW, vh / videoH)
++        val sx = videoW * scale / vw
++        val sy = videoH * scale / vh
++        textureView.setTransform(Matrix().apply { setScale(sx, sy, vw / 2f, vh / 2f) })
++    }
++
++    private fun release() {
++        runCatching { player?.release() }
++        player = null
++        runCatching { surface?.release() }
++        surface = null
++    }
++
++    override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
++        if (!paused) start()
++    }
++
++    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {
++        player?.let { applyCenterCrop(it.videoWidth, it.videoHeight) }
++    }
++
++    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
++        release()
++        return true
++    }
++
++    override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/Components.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/Components.kt
+index 52bba94..0a8272a 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/Components.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/Components.kt
+@@ -7,5 +7,7 @@ enum class Components(val component: String, val displayName: String, val summar
+     CACIOCAVALLO("caciocavallo", "caciocavallo", R.string.splash_screen_cacio, false),
+     CACIOCAVALLO17("caciocavallo17", "caciocavallo 17", R.string.splash_screen_cacio, false),
+     LWJGL3("lwjgl3", "LWJGL 3.3.6", R.string.splash_screen_lwjgl, false),
++    // native libraries (.so) must live in app-private storage: external storage is mounted noexec
++    LWJGL3_341("lwjgl3_341", "LWJGL 3.4.1", R.string.splash_screen_lwjgl, true),
+     COMPONENTS("components", "Launcher Components", R.string.splash_screen_components, true)
+ }
+\ No newline at end of file
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/UnpackComponentsTask.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/UnpackComponentsTask.kt
+index 3ee69d5..138e725 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/UnpackComponentsTask.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/unpack/UnpackComponentsTask.kt
+@@ -3,6 +3,7 @@ package com.movtery.zalithlauncher.feature.unpack
+ import android.content.Context
+ import android.content.res.AssetManager
+ import com.movtery.zalithlauncher.feature.log.Logging.i
++import com.movtery.zalithlauncher.launch.LwjglComponent
+ import com.movtery.zalithlauncher.utils.path.PathManager
+ import net.kdt.pojavlaunch.Tools
+ import org.apache.commons.io.FileUtils
+@@ -53,13 +54,28 @@ class UnpackComponentsTask(val context: Context, val component: Components) : Ab
+ 
+     override fun run() {
+         listener?.onTaskStart()
+-        val fileList = am.list("components/${component.component}")
+-        for (fileName in fileList!!) {
+-            Tools.copyAssetFile(context, "components/${component.component}/$fileName", "$rootDir/${component.component}", true)
+-        }
++        copyAssetDir("components/${component.component}", "$rootDir/${component.component}")
+         listener?.onTaskEnd()
+     }
+ 
++    /**
++     * Copy an asset directory recursively. Sub-folders of a "natives" folder are ABI folders
++     * (arm64-v8a, armeabi-v7a, ...): only the one matching this device is unpacked to save space/time.
++     */
++    private fun copyAssetDir(assetPath: String, outputDir: String) {
++        val children = am.list(assetPath) ?: return
++        for (name in children) {
++            val childAsset = "$assetPath/$name"
++            val grandChildren = am.list(childAsset)
++            if (!grandChildren.isNullOrEmpty()) {
++                if (assetPath.endsWith("/natives") && name != LwjglComponent.abiDirName()) continue
++                copyAssetDir(childAsset, "$outputDir/$name")
++            } else {
++                Tools.copyAssetFile(context, childAsset, outputDir, true)
++            }
++        }
++    }
++
+     private fun requestEmptyParentDir(file: File) {
+         file.parentFile!!.apply {
+             if (exists() and isDirectory) {
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchArgs.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchArgs.kt
+index 2bd1247..7d0c758 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchArgs.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchArgs.kt
+@@ -3,6 +3,7 @@ package com.movtery.zalithlauncher.launch
+ import androidx.collection.ArrayMap
+ import com.movtery.zalithlauncher.InfoDistributor
+ import com.movtery.zalithlauncher.feature.accounts.AccountUtils
++import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
+ import com.movtery.zalithlauncher.feature.customprofilepath.ProfilePathHome
+ import com.movtery.zalithlauncher.feature.customprofilepath.ProfilePathHome.Companion.getLibrariesHome
+ import com.movtery.zalithlauncher.feature.version.Version
+@@ -27,13 +28,16 @@ class LaunchArgs(
+     private val runtime: Runtime,
+     private val launchClassPath: String
+ ) {
++    /** Game versions that ask for LWJGL >= 3.4.1 (e.g. the new 26.x versions) run on the bundled 3.4.1 component. */
++    private val useLwjgl341: Boolean by lazy { LwjglComponent.shouldUse341(versionInfo) }
++
+     fun getAllArgs(): List<String> {
+         val argsList: MutableList<String> = ArrayList()
+ 
+         argsList.addAll(getJavaArgs())
+         argsList.addAll(getMinecraftJVMArgs())
+         argsList.add("-cp")
+-        argsList.add("${Tools.getLWJGL3ClassPath()}:$launchClassPath")
++        argsList.add("${if (useLwjgl341) LwjglComponent.classPath(true) else Tools.getLWJGL3ClassPath()}:$launchClassPath")
+ 
+         if (runtime.javaVersion > 8) {
+             argsList.add("--add-exports")
+@@ -57,6 +61,12 @@ class LaunchArgs(
+             } else {
+                 argsList.add("-javaagent:${LibPath.AUTHLIB_INJECTOR.absolutePath}=${account.otherBaseUrl}")
+             }
++        } else if (AccountUtils.isNoLoginRequired(account)) {
++            // Offline account with a custom skin: serve it through a local skin server + authlib-injector
++            OfflineSkinServer.prepare(account)?.let { port ->
++                argsList.add("-javaagent:${LibPath.AUTHLIB_INJECTOR.absolutePath}=http://localhost:$port")
++                argsList.add("-Dauthlibinjector.side=client")
++            }
+         }
+ 
+         argsList.addAll(getCacioJavaArgs(runtime.javaVersion == 8))
+@@ -72,6 +82,8 @@ class LaunchArgs(
+             argsList.add("-Djna.boot.library.path=$dirPath")
+         }
+ 
++        if (useLwjgl341) argsList.addAll(LwjglComponent.nativeArgs())
++
+         return argsList
+     }
+ 
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LwjglComponent.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LwjglComponent.kt
+new file mode 100644
+index 0000000..45426c3
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LwjglComponent.kt
+@@ -0,0 +1,87 @@
++package com.movtery.zalithlauncher.launch
++
++import com.movtery.zalithlauncher.utils.path.PathManager
++import net.kdt.pojavlaunch.Architecture
++import net.kdt.pojavlaunch.JMinecraftVersionList
++import java.io.File
++
++/**
++ * Chooses which bundled LWJGL 3 component a game version runs on.
++ *
++ *  - "lwjgl3"      : LWJGL 3.3.x component (default, natives come from the launcher's jniLibs)
++ *  - "lwjgl3_341"  : LWJGL 3.4.1 component (jars + per-ABI natives unpacked to app-private storage),
++ *                    used for game versions whose manifest asks for LWJGL >= 3.4.1
++ */
++object LwjglComponent {
++    const val DIR_DEFAULT = "lwjgl3"
++    const val DIR_341 = "lwjgl3_341"
++    private const val VERSION_341 = 341
++
++    /** ABI folder name inside `natives/` of the 3.4.1 component for this device. */
++    @JvmStatic
++    fun abiDirName(): String = when (Architecture.getDeviceArchitecture()) {
++        Architecture.ARCH_ARM64 -> "arm64-v8a"
++        Architecture.ARCH_ARM -> "armeabi-v7a"
++        Architecture.ARCH_X86_64 -> "x86_64"
++        Architecture.ARCH_X86 -> "x86"
++        else -> "arm64-v8a"
++    }
++
++    /**
++     * Reads `org.lwjgl:lwjgl:X.Y.Z` from the version manifest and returns it as an int (3.4.1 -> 341).
++     * @return 0 if it can't be determined
++     */
++    @JvmStatic
++    fun detectLwjglVersion(info: JMinecraftVersionList.Version?): Int {
++        val libs = info?.libraries ?: return 0
++        for (lib in libs) {
++            val name = lib?.name ?: continue
++            if (!name.startsWith("org.lwjgl:lwjgl:")) continue
++            val v = name.removePrefix("org.lwjgl:lwjgl:")
++                .takeWhile { it.isDigit() || it == '.' }
++                .filter { it != '.' }
++                .toIntOrNull()
++            if (v != null && v in 300..999) return v
++        }
++        return 0
++    }
++
++    private fun componentDir(dirName: String) =
++        // 3.4.1 holds native .so files -> app-private dir (see Components.LWJGL3_341); 3.3.x jars stay in the game home
++        if (dirName == DIR_341) File(PathManager.DIR_DATA, dirName) else File(PathManager.DIR_GAME_HOME, dirName)
++
++    private fun nativesDir() = File(componentDir(DIR_341), "natives/${abiDirName()}")
++
++    /** True when the game wants LWJGL >= 3.4.1 *and* the 3.4.1 component is really unpacked on this device. */
++    @JvmStatic
++    fun shouldUse341(info: JMinecraftVersionList.Version?): Boolean {
++        if (detectLwjglVersion(info) < VERSION_341) return false
++        val dir = componentDir(DIR_341)
++        val hasJars = dir.listFiles { f -> f.name.endsWith(".jar") }?.isNotEmpty() == true
++        return hasJars && File(nativesDir(), "liblwjgl.so").exists()
++    }
++
++    /** `-cp` part for the chosen component. Core `lwjgl.jar` first, then merged modules, then the rest. */
++    @JvmStatic
++    fun classPath(use341: Boolean): String {
++        val dir = componentDir(if (use341) DIR_341 else DIR_DEFAULT)
++        val jars = dir.listFiles { f -> f.name.endsWith(".jar") }?.toList().orEmpty()
++        return jars.sortedBy {
++            when {
++                it.name == "lwjgl.jar" -> 0
++                it.name.contains("merged-modules") -> 1
++                else -> 2
++            }
++        }.joinToString(":") { it.absolutePath }
++    }
++
++    /** JVM args that make LWJGL load the 3.4.1 natives instead of the 3.3.x ones in nativeLibraryDir. */
++    @JvmStatic
++    fun nativeArgs(): List<String> {
++        val dir = nativesDir().absolutePath
++        return listOf(
++            "-Dorg.lwjgl.librarypath=$dir",
++            "-Dorg.lwjgl.freetype.libname=$dir/libfreetype.so"
++        )
++    }
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/Renderers.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/Renderers.kt
+index b272749..a64b99c 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/Renderers.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/Renderers.kt
+@@ -4,6 +4,7 @@ import android.content.Context
+ import com.movtery.zalithlauncher.feature.log.Logging
+ import com.movtery.zalithlauncher.renderer.renderers.FreedrenoRenderer
+ import com.movtery.zalithlauncher.renderer.renderers.GL4ESRenderer
++import com.movtery.zalithlauncher.renderer.renderers.NGGL4ESRenderer
+ import com.movtery.zalithlauncher.renderer.renderers.PanfrostRenderer
+ import com.movtery.zalithlauncher.renderer.renderers.VirGLRenderer
+ import com.movtery.zalithlauncher.renderer.renderers.VulkanZinkRenderer
+@@ -31,6 +32,7 @@ object Renderers {
+ 
+         addRenderers(
+             GL4ESRenderer(),
++            NGGL4ESRenderer(),
+             VulkanZinkRenderer(),
+             VirGLRenderer(),
+             FreedrenoRenderer(),
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/renderers/NGGL4ESRenderer.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/renderers/NGGL4ESRenderer.kt
+new file mode 100644
+index 0000000..dba2cc4
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/renderer/renderers/NGGL4ESRenderer.kt
+@@ -0,0 +1,30 @@
++package com.movtery.zalithlauncher.renderer.renderers
++
++import com.movtery.zalithlauncher.renderer.RendererInterface
++
++/**
++ * NG-GL4ES ("Krypton Wrapper"), the newer GL4ES based renderer shipped with Zalith Launcher 2.
++ * Runs on an OpenGL ES 3 context (LIBGL_ES=3), so the id must not start with "opengles2"
++ * (that would force LIBGL_ES=2 in JREUtils.setRendererEnv).
++ */
++class NGGL4ESRenderer : RendererInterface {
++    override fun getRendererId(): String = "opengles3"
++
++    override fun getUniqueIdentifier(): String = "e7b90ed6-e518-4d4e-93dc-5c7133cd5b31"
++
++    override fun getRendererName(): String = "Krypton Wrapper (NG-GL4ES)"
++
++    override fun getRendererEnv(): Lazy<Map<String, String>> = lazy {
++        buildMap {
++            put("LIBGL_USE_MC_COLOR", "1")
++            put("LIBGL_GL", "31")
++            put("LIBGL_ES", "3")
++            put("LIBGL_NORMALIZE", "1")
++            put("LIBGL_NOERROR", "1")
++        }
++    }
++
++    override fun getDlopenLibrary(): Lazy<List<String>> = lazy { emptyList() }
++
++    override fun getRendererLibrary(): String = "libng_gl4es.so"
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+index 74ff062..44b7f58 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+@@ -141,6 +141,10 @@ class AllSettings {
+         @JvmStatic
+         val gameMenuAlpha = IntSettingUnit("gameMenuAlpha", 100)
+ 
++        /** Hide the floating gear button in game (menu can still be opened by swiping from the right edge) */
++        @JvmStatic
++        val gameMenuHideButton = BooleanSettingUnit("gameMenuHideButton", false)
++
+         // Launcher
+         @JvmStatic
+         val checkLibraries = BooleanSettingUnit("checkLibraries", true)
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
+index ccdbe25..02b78b7 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
+@@ -16,6 +16,8 @@ import android.view.animation.LayoutAnimationController
+ import android.widget.EditText
+ import android.widget.PopupWindow
+ import android.widget.Toast
++import android.net.Uri
++import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.appcompat.app.AlertDialog
+ import androidx.core.content.ContextCompat
+ import androidx.recyclerview.widget.LinearLayoutManager
+@@ -37,6 +39,7 @@ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils
+ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.CheckResultListener
+ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.checkUsageAllowed
+ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.openDialog
++import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
+ import com.movtery.zalithlauncher.feature.accounts.OtherLoginHelper
+ import com.movtery.zalithlauncher.feature.log.Logging
+ import com.movtery.zalithlauncher.feature.login.OtherLoginApi
+@@ -108,6 +111,64 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+ 
+     private lateinit var mProgressDialog: AlertDialog
+ 
++    /** Offline account that is currently choosing a custom skin */
++    private var mSkinTargetAccount: MinecraftAccount? = null
++    private val mSkinPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
++        val account = mSkinTargetAccount
++        mSkinTargetAccount = null
++        if (uri == null || account == null) return@registerForActivityResult
++        val ctx = requireContext()
++        runCatching {
++            val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("cannot read file")
++            if (bytes.size > 2 * 1024 * 1024 || !OfflineSkinServer.isValidSkin(bytes)) {
++                Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
++                return@runCatching
++            }
++            val target = OfflineSkinServer.skinFileOf(account)
++            target.parentFile?.mkdirs()
++            target.writeBytes(bytes)
++            Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_LONG).show()
++            reloadAccounts()
++        }.onFailure { e ->
++            Logging.e(TAG, "Failed to import skin: ${e.message}")
++            Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
++        }
++    }
++
++    /**
++     * Skin dialog for an offline account: choose the arm model (auto / Steve / Alex), pick a PNG file,
++     * or remove the custom skin.
++     */
++    private fun showSkinDialog(account: MinecraftAccount) {
++        val ctx = requireContext()
++        val models = arrayOf<String?>(null, "classic", "slim")
++        val names = arrayOf(
++            getString(R.string.account_skin_model_auto),
++            getString(R.string.account_skin_model_classic),
++            getString(R.string.account_skin_model_slim)
++        )
++        var selected = models.indexOf(OfflineSkinServer.getModel(account)).coerceAtLeast(0)
++
++        AlertDialog.Builder(ctx)
++            .setTitle(R.string.account_change_skin)
++            .setSingleChoiceItems(names, selected) { _, which -> selected = which }
++            .setPositiveButton(R.string.account_skin_pick_file) { _, _ ->
++                OfflineSkinServer.setModel(account, models[selected])
++                mSkinTargetAccount = account
++                mSkinPicker.launch(arrayOf("image/png"))
++            }
++            .setNeutralButton(R.string.account_skin_apply_model) { _, _ ->
++                OfflineSkinServer.setModel(account, models[selected])
++                Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_SHORT).show()
++            }
++            .setNegativeButton(R.string.account_skin_remove) { _, _ ->
++                OfflineSkinServer.resetSkin(account)
++                Toast.makeText(ctx, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
++                reloadAccounts()
++            }
++            .show()
++    }
++
+     override fun onCreateView(
+         inflater: LayoutInflater,
+         container: ViewGroup?,
+@@ -139,6 +200,16 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+                 }
+             }
+ 
++            override fun onChangeSkin(account: MinecraftAccount) {
++                showSkinDialog(account)
++            }
++
++            override fun onResetSkin(account: MinecraftAccount) {
++                OfflineSkinServer.resetSkin(account)
++                Toast.makeText(context, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
++                reloadAccounts()
++            }
++
+             override fun onDelete(account: MinecraftAccount) {
+                 TipDialog.Builder(context)
+                     .setTitle(R.string.generic_warning)
+@@ -152,6 +223,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+                             File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".png")
+                         if (accountFile.exists()) FileUtils.deleteQuietly(accountFile)
+                         if (userSkinFile.exists()) FileUtils.deleteQuietly(userSkinFile)
++                        File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
+                         reloadAccounts()
+                     }.showDialog()
+             }
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
+index 975d1db..8998f69 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
+@@ -93,7 +93,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+                     override fun onFileSelected(file: File?, path: String?) {
+                         val fileName = file!!.name
+ 
+-                        val image = isImage(file)
++                        val image = isImage(file) || BackgroundManager.isVideo(file)
+                         val filesButton = FilesButton()
+                         filesButton.setButtonVisibility(false, false, true, true, true, image)
+                         //默认虚拟鼠标不支持分享、重命名、删除操作
+@@ -155,7 +155,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+                 }
+ 
+                 returnButton.setOnClickListener { ZHTools.onBackPressed(requireActivity()) }
+-                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*")) }
++                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*", "video/*")) }
+                 refreshButton.setOnClickListener {
+                     fileRecyclerView.listFileAt(backgroundPath())
+                 }
+@@ -223,6 +223,15 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+ 
+     private fun refreshBackgroundPreview() {
+         binding.preview.let {
++            BackgroundManager.getBackgroundVideo(backgroundType)?.apply {
++                // Preview a video selection with its first frame
++                Glide.with(requireActivity())
++                    .load(this)
++                    .fitCenter()
++                    .into(DrawableImageViewTarget(it))
++                return
++            }
++
+             BackgroundManager.getBackgroundImage(backgroundType)?.apply {
+                 Glide.with(requireActivity())
+                     .load(this)
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
+index 20bb8c4..5f416a5 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
+@@ -170,6 +170,13 @@ class GameSettingsFragment : AbstractSettingsFragment(R.layout.settings_fragment
+             openGameMenuFPS()
+         }
+ 
++        SwitchSettingsWrapper(
++            context,
++            AllSettings.gameMenuHideButton,
++            binding.gameMenuHideButtonLayout,
++            binding.gameMenuHideButton
++        )
++
+         EditTextSettingsWrapper(
+             AllSettings.gameMenuMemoryText,
+             binding.gameMenuMemoryTextLayout,
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/account/AccountAdapter.java b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/account/AccountAdapter.java
+index bb379d9..8735067 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/account/AccountAdapter.java
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/account/AccountAdapter.java
+@@ -56,6 +56,12 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.Holder>
+         void onRefresh(MinecraftAccount account);
+ 
+         void onDelete(MinecraftAccount account);
++
++        /** Offline accounts only: pick a local skin image */
++        default void onChangeSkin(MinecraftAccount account) {}
++
++        /** Offline accounts only: remove the custom skin (long press on the skin button) */
++        default void onResetSkin(MinecraftAccount account) {}
+     }
+ 
+     public class Holder extends RecyclerView.ViewHolder {
+@@ -73,7 +79,13 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.Holder>
+                 itemView.setOnClickListener(v -> accountUpdateListener.onViewClick(account));
+                 binding.refresh.setOnClickListener(v -> accountUpdateListener.onRefresh(account));
+                 binding.delete.setOnClickListener(v -> accountUpdateListener.onDelete(account));
++                binding.skin.setOnClickListener(v -> accountUpdateListener.onChangeSkin(account));
++                binding.skin.setOnLongClickListener(v -> {
++                    accountUpdateListener.onResetSkin(account);
++                    return true;
++                });
+             }
++            binding.skin.setVisibility(AccountUtils.isNoLoginRequired(account) && !AccountUtils.isMicrosoftAccount(account) && !AccountUtils.isOtherLoginAccount(account) ? View.VISIBLE : View.GONE);
+ 
+             binding.name.setText(account.username);
+ 
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
+index e218b42..33c719d 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
+@@ -32,6 +32,7 @@ class GameMenuViewWrapper(
+     private val memoryText: String = AllSettings.gameMenuMemoryText.getValue()
+     private var showMemory: Boolean = false
+     private var showFPS: Boolean = false
++    private var hideButton: Boolean = false
+     private var visible: Boolean = false
+ 
+     private var scopeFx: IFxScopeControl? = null
+@@ -48,6 +49,7 @@ class GameMenuViewWrapper(
+             addViewLifecycle(object : IFxViewLifecycle {
+                 override fun initView(holder: FxViewHolder) {
+                     holder.view.alpha = AllSettings.gameMenuAlpha.getValue().toFloat() / 100f
++                    applyButtonVisibility(holder.view)
+ 
+                     updateInfoText(holder.view)
+                 }
+@@ -85,7 +87,7 @@ class GameMenuViewWrapper(
+      * 根据三个条件判断是否显示悬浮窗（是否想要显示、是否展示内存信息、是否展示FPS）
+      */
+     private fun thinkForVisibility() {
+-        val v1 = visible || showMemory || showFPS
++        val v1 = (visible && !hideButton) || showMemory || showFPS
+         if (v1) {
+             if (scopeFx != null) {
+                 updateInfoText()
+@@ -106,6 +108,14 @@ class GameMenuViewWrapper(
+     private fun refreshState() {
+         showMemory = AllSettings.gameMenuShowMemory.getValue()
+         showFPS = AllSettings.gameMenuShowFPS.getValue()
++        hideButton = AllSettings.gameMenuHideButton.getValue()
++        scopeFx?.getView()?.let { applyButtonVisibility(it) }
++    }
++
++    /** Show or hide only the gear icon (FPS / memory text stays visible if enabled) */
++    private fun applyButtonVisibility(view: View) {
++        view.findViewById<View>(R.id.settings_button)?.visibility =
++            if (hideButton) View.GONE else View.VISIBLE
+     }
+ 
+     private fun updateInfoText() {
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
+index 9a1fb5b..adab73c 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
+@@ -492,6 +492,14 @@ public class LauncherActivity extends BaseActivity {
+         super.onResume();
+         setPageOpacity(AllSettings.getPageOpacity().getValue());
+         VersionsManager.INSTANCE.refresh("LauncherActivity:onResume", false);
++        if (mVideoBackground != null) mVideoBackground.onResume();
++    }
++
++    @Override
++    protected void onPause() {
++        super.onPause();
++        // Free the video decoder while the game / another screen is in front (saves RAM)
++        if (mVideoBackground != null) mVideoBackground.onPause();
+     }
+ 
+     @Override
+@@ -503,6 +511,7 @@ public class LauncherActivity extends BaseActivity {
+     @Override
+     protected void onDestroy() {
+         super.onDestroy();
++        if (mVideoBackground != null) mVideoBackground.onDestroy();
+         binding.progressLayout.cleanUpObservers();
+         ProgressKeeper.removeTaskCountListener(binding.progressLayout);
+         ProgressKeeper.removeTaskCountListener(mProgressServiceKeeper);
+@@ -584,7 +593,20 @@ public class LauncherActivity extends BaseActivity {
+         }
+     }
+ 
++    private com.movtery.zalithlauncher.feature.background.VideoBackgroundController mVideoBackground;
++
+     private void refreshBackground() {
++        if (mVideoBackground == null) {
++            mVideoBackground = new com.movtery.zalithlauncher.feature.background.VideoBackgroundController(binding.videoBackgroundView);
++        }
++        java.io.File video = BackgroundManager.getBackgroundVideo(BackgroundType.MAIN_MENU);
++        mVideoBackground.setVideo(video);
++        if (video != null) {
++            // Video selected: plain colour behind it, default top bar colours
++            binding.backgroundView.setImageDrawable(ContextCompat.getDrawable(this, R.color.background_app));
++            refreshTopBarColor(false);
++            return;
++        }
+         BackgroundManager.setBackgroundImage(this, BackgroundType.MAIN_MENU, binding.backgroundView, this::refreshTopBarColor);
+     }
+ 
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+index f40ccf6..b55a679 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+@@ -176,7 +176,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+         binding.mainControlLayout.setMenuListener(this);
+ 
+         binding.mainDrawerOptions.setScrimColor(Color.TRANSPARENT);
+-        binding.mainDrawerOptions.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++        updateDrawerLock();
+ 
+         try {
+             File latestLogFile = new File(PathManager.DIR_GAME_HOME, "latestlog.txt");
+@@ -487,6 +487,14 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+         navigationView.requestLayout();
+     }
+ 
++    /** When the gear button is hidden, allow opening the menu by swiping from the right edge. */
++    private void updateDrawerLock() {
++        binding.mainDrawerOptions.setDrawerLockMode(
++                AllSettings.getGameMenuHideButton().getValue()
++                        ? DrawerLayout.LOCK_MODE_UNLOCKED
++                        : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++    }
++
+     @Override
+     public void exitEditor() {
+         try {
+@@ -556,6 +564,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             //初始化Switch的状态
+             this.binding.openMemoryInfo.setChecked(AllSettings.getGameMenuShowMemory().getValue());
+             this.binding.openFpsInfo.setChecked(AllSettings.getGameMenuShowFPS().getValue());
++            this.binding.hideMenuButton.setChecked(AllSettings.getGameMenuHideButton().getValue());
+             this.binding.disableGestures.setChecked(AllSettings.getDisableGestures().getValue());
+             this.binding.disableDoubleTap.setChecked(AllSettings.getDisableDoubleTap().getValue());
+             this.binding.enableGyro.setChecked(AllSettings.getEnableGyro().getValue());
+@@ -573,6 +582,8 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             this.binding.openMemoryInfoLayout.setOnClickListener(this);
+             this.binding.openFpsInfo.setOnCheckedChangeListener(this);
+             this.binding.openFpsInfoLayout.setOnClickListener(this);
++            this.binding.hideMenuButton.setOnCheckedChangeListener(this);
++            this.binding.hideMenuButtonLayout.setOnClickListener(this);
+ 
+             this.binding.resolutionScaler.setOnSeekBarChangeListener(this);
+             this.binding.resolutionScalerRemove.setOnClickListener(this);
+@@ -680,6 +691,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             else if (v == binding.sendCustomKey) dialogSendCustomKey();
+             else if (v == binding.openMemoryInfoLayout) MenuUtils.toggleSwitchState(binding.openMemoryInfo);
+             else if (v == binding.openFpsInfoLayout) MenuUtils.toggleSwitchState(binding.openFpsInfo);
++            else if (v == binding.hideMenuButtonLayout) MenuUtils.toggleSwitchState(binding.hideMenuButton);
+             else if (v == binding.resolutionScalerRemove) MenuUtils.adjustSeekbar(binding.resolutionScaler, -1);
+             else if (v == binding.resolutionScalerAdd) MenuUtils.adjustSeekbar(binding.resolutionScaler, 1);
+             else if (v == binding.disableGesturesLayout) MenuUtils.toggleSwitchState(binding.disableGestures);
+@@ -757,6 +769,10 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             } else if (v == binding.openFpsInfo) {
+                 AllSettings.getGameMenuShowFPS().put(isChecked).save();
+                 mGameMenuWrapper.refreshSettingsState();
++            } else if (v == binding.hideMenuButton) {
++                AllSettings.getGameMenuHideButton().put(isChecked).save();
++                mGameMenuWrapper.refreshSettingsState();
++                updateDrawerLock();
+             } else if (v == binding.disableGestures) {
+                 refreshLayoutVisible(binding.timeLongPressTriggerLayout, !isChecked);
+                 AllSettings.getDisableGestures().put(isChecked).save();
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/customcontrols/keyboard/TouchCharInput.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/customcontrols/keyboard/TouchCharInput.java
+index e9bf98d..6fa2461 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/customcontrols/keyboard/TouchCharInput.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/customcontrols/keyboard/TouchCharInput.java
+@@ -5,9 +5,11 @@ import static android.content.Context.INPUT_METHOD_SERVICE;
+ 
+ import android.content.Context;
+ import android.text.Editable;
++import android.text.InputType;
+ import android.text.Selection;
+ import android.util.AttributeSet;
+ import android.view.KeyEvent;
++import android.view.inputmethod.EditorInfo;
+ import android.view.inputmethod.InputMethodManager;
+ 
+ import androidx.annotation.NonNull;
+@@ -32,8 +34,15 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText
+     }
+ 
+ 
++    private static final int SHOW_IME_MAX_ATTEMPTS = 6;
++    private static final long SHOW_IME_RETRY_DELAY_MS = 60;
++    private static final long FOCUS_LOSS_GRACE_MS = 250;
++
+     private boolean mIsDoingInternalChanges = false;
+     private CharacterSenderStrategy mCharacterSender;
++    private int mShowImeAttempts = 0;
++    private final Runnable mShowImeRunnable = this::tryShowSoftInput;
++    private final Runnable mDisableIfUnfocusedRunnable = () -> { if(!hasWindowFocus()) disable(); };
+ 
+     /**
+      * When we change from app to app, the keyboard gets disabled.
+@@ -42,7 +51,12 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText
+     @Override
+     public void onWindowFocusChanged(boolean hasWindowFocus) {
+         super.onWindowFocusChanged(hasWindowFocus);
+-        disable();
++        removeCallbacks(mDisableIfUnfocusedRunnable);
++        // Regaining focus never needs to tear the input down. Doing it anyway made the keyboard
++        // flicker/"kejang" on low-end phones, because opening the IME can briefly flip window focus.
++        if (hasWindowFocus) return;
++        // Wait a moment so a short focus flicker doesn't kill the keyboard, but a real app switch still does.
++        postDelayed(mDisableIfUnfocusedRunnable, FOCUS_LOSS_GRACE_MS);
+     }
+ 
+     /**
+@@ -62,14 +76,29 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText
+      * Toggle on and off the soft keyboard, depending of the state
+      */
+     public void switchKeyboardState(){
+-        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+         // Allow, regardless of whether or not a hardware keyboard is declared
+         if(hasFocus()){
+             clear();
+             disable();
+         }else{
+             enable();
+-            imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
++            mShowImeAttempts = 0;
++            // Don't ask for the IME in the same frame we made the view visible: the view isn't laid out
++            // or focused yet, so on low-RAM phones the request is dropped and the keyboard shows up late.
++            post(mShowImeRunnable);
++        }
++    }
++
++    /** Ask for the soft keyboard, retrying a few times until the view and window are ready. */
++    private void tryShowSoftInput(){
++        if(!isEnabled() || getVisibility() != VISIBLE) return; // disabled again in the meantime
++        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
++        if(imm == null) return;
++        if(!hasFocus()) requestFocus();
++        boolean shown = isAttachedToWindow() && hasWindowFocus()
++                && imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
++        if(!shown && ++mShowImeAttempts < SHOW_IME_MAX_ATTEMPTS){
++            postDelayed(mShowImeRunnable, SHOW_IME_RETRY_DELAY_MS);
+         }
+     }
+ 
+@@ -100,6 +129,7 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText
+ 
+     /** Lose ability to exist, take focus and have some text being input */
+     public void disable(){
++        removeCallbacks(mShowImeRunnable);
+         clear();
+         setVisibility(GONE);
+         clearFocus();
+@@ -122,6 +152,10 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText
+     private void setup(){
+         // Using TextWatcher instead of overriding onTextChanged because some Huawei firmware
+         // calls setText in constructor, causing havoc for our listener
++        // Less work for the keyboard on weak phones: no suggestion/autocorrect engine and no fullscreen
++        // "extract" editor when the phone is in landscape (a big source of lag when the keyboard opens).
++        setInputType(getInputType() | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
++        setImeOptions(getImeOptions() | EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN);
+         addTextChangedListener(new InputTextWatcher());
+         setOnEditorActionListener((textView, i, keyEvent) -> {
+             sendEnter();
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
+index ae5ab31..55ed7bb 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
+@@ -386,8 +386,37 @@ public final class JREUtils {
+         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
+ 
+         //Add automatically generated args
+-        userArgs.add("-Xms" + AllSettings.getRamAllocation().getValue().getValue() + "M");
+-        userArgs.add("-Xmx" + AllSettings.getRamAllocation().getValue().getValue() + "M");
++        final int xmx = AllSettings.getRamAllocation().getValue().getValue();
++        // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
++        // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
++        final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;
++        // With SerialGC the young generation is sized from the INITIAL heap (1/3 of -Xms). A tiny -Xms
++        // (256M) means a ~85M young gen, so GC runs several times a second and the old generation keeps
++        // growing through repeated full (stop-the-world, single-threaded) collections - on a slow phone
++        // CPU each of those can freeze the game for 1-3 seconds. So: start at half of -Xmx and pin the
++        // young generation to a fixed size. Pages are only touched when used, so this does not raise RAM use.
++        final int xms = lowRam ? Math.max(Math.min(xmx, 384), xmx / 2) : xmx;
++        userArgs.add("-Xms" + xms + "M");
++        userArgs.add("-Xmx" + xmx + "M");
++        if (lowRam) {
++            boolean userSetGc = false;
++            boolean userSetCodeCache = false;
++            boolean userSetNewSize = false;
++            for (String a : userArgs) {
++                if (a.startsWith("-XX:+Use") && a.endsWith("GC")) userSetGc = true;
++                if (a.startsWith("-XX:ReservedCodeCacheSize")) userSetCodeCache = true;
++                if (a.startsWith("-Xmn") || a.startsWith("-XX:NewSize") || a.startsWith("-XX:MaxNewSize") || a.startsWith("-XX:NewRatio")) userSetNewSize = true;
++            }
++            if (!userSetGc) userArgs.add("-XX:+UseSerialGC");
++            if (!userSetCodeCache) userArgs.add("-XX:ReservedCodeCacheSize=64m");
++            if (!userSetNewSize && !userSetGc) {
++                // Young gen = 1/3 of the heap, clamped to 96..256 MB (never more than half of -Xms)
++                final int young = Math.min(Math.min(256, xms / 2), Math.max(96, xmx / 3));
++                userArgs.add("-Xmn" + young + "M");
++            }
++            userArgs.add("-XX:-UsePerfData");
++            Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB): Xms=" + xms + "M");
++        }
+         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
+ 
+         // Force LWJGL to use the Freetype library intended for it, instead of using the one
+diff --git a/ZalithLauncher/src/main/res/drawable/background_item_glass.xml b/ZalithLauncher/src/main/res/drawable/background_item_glass.xml
+new file mode 100644
+index 0000000..cde1d87
+--- /dev/null
++++ b/ZalithLauncher/src/main/res/drawable/background_item_glass.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Translucent "glass" card: lets the custom image/video background show through -->
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:state_pressed="true">
++        <shape android:shape="rectangle">
++            <corners android:radius="@dimen/_6sdp" />
++            <solid android:color="#59FFFFFF" />
++        </shape>
++    </item>
++    <item>
++        <shape android:shape="rectangle">
++            <corners android:radius="@dimen/_6sdp" />
++            <solid android:color="#26000000" />
++            <stroke android:width="1dp" android:color="#33FFFFFF" />
++        </shape>
++    </item>
++</selector>
+diff --git a/ZalithLauncher/src/main/res/drawable/ic_skin.xml b/ZalithLauncher/src/main/res/drawable/ic_skin.xml
+new file mode 100644
+index 0000000..1d4abd8
+--- /dev/null
++++ b/ZalithLauncher/src/main/res/drawable/ic_skin.xml
+@@ -0,0 +1,12 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="@color/black_or_white"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++
++    <path
++        android:fillColor="#000000"
++        android:pathData="M12,12c2.21,0 4,-1.79 4,-4s-1.79,-4 -4,-4 -4,1.79 -4,4 1.79,4 4,4zM12,14c-2.67,0 -8,1.34 -8,4v2h16v-2c0,-2.66 -5.33,-4 -8,-4z" />
++
++</vector>
+diff --git a/ZalithLauncher/src/main/res/layout/activity_launcher.xml b/ZalithLauncher/src/main/res/layout/activity_launcher.xml
+index d834b16..7c78e00 100644
+--- a/ZalithLauncher/src/main/res/layout/activity_launcher.xml
++++ b/ZalithLauncher/src/main/res/layout/activity_launcher.xml
+@@ -10,6 +10,12 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"/>
+ 
++    <TextureView
++        android:id="@+id/video_background_view"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:visibility="gone"/>
++
+     <androidx.constraintlayout.widget.ConstraintLayout
+         android:id="@+id/top_layout"
+         android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/layout/fragment_launcher.xml b/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
+index de20ca5..a64c637 100644
+--- a/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
++++ b/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
+@@ -28,194 +28,174 @@
+             app:layout_constraintStart_toStartOf="parent"
+             app:layout_constraintTop_toTopOf="parent">
+ 
+-            <LinearLayout
++            <GridLayout
+                 android:layout_width="match_parent"
+                 android:layout_height="wrap_content"
+-                android:orientation="vertical">
++                android:columnCount="2"
++                android:padding="@dimen/_6sdp">
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/about_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/about_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:scaleX="0.93"
+                         android:scaleY="0.93"
+                         android:src="@drawable/ic_about"/>
+ 
+                     <TextView
+                         android:id="@+id/about_text"
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/about_icon"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/about_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/custom_control_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/custom_control_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_menu_custom_controls"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/custom_control_icon"
+                         android:text="@string/custom_control_title"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/custom_control_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/open_main_dir_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/open_main_dir_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_folder"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/open_main_dir_icon"
+                         android:text="@string/main_open_main_dir"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/open_main_dir_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/install_jar_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/install_jar_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_java"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/install_jar_icon"
+                         android:text="@string/main_install_jar_file"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/install_jar_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/share_logs_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:layout_marginBottom="@dimen/_12sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/share_logs_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_share"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/share_logs_icon"
+                         android:text="@string/main_share_logs"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/share_logs_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+-            </LinearLayout>
++            </GridLayout>
+         </ScrollView>
+ 
+     </androidx.constraintlayout.widget.ConstraintLayout>
+diff --git a/ZalithLauncher/src/main/res/layout/item_account_manager.xml b/ZalithLauncher/src/main/res/layout/item_account_manager.xml
+index f7eb1e6..498ad1c 100644
+--- a/ZalithLauncher/src/main/res/layout/item_account_manager.xml
++++ b/ZalithLauncher/src/main/res/layout/item_account_manager.xml
+@@ -28,7 +28,7 @@
+         android:layout_marginHorizontal="@dimen/_16sdp"
+         android:textSize="@dimen/_14ssp"
+         android:textStyle="bold"
+-        app:layout_constraintEnd_toStartOf="@+id/refresh"
++        app:layout_constraintEnd_toStartOf="@+id/skin"
+         app:layout_constraintStart_toEndOf="@+id/icon"
+         app:layout_constraintTop_toTopOf="@+id/icon" />
+ 
+@@ -37,7 +37,7 @@
+         android:layout_width="0dp"
+         android:layout_height="wrap_content"
+         android:layout_marginHorizontal="@dimen/_16sdp"
+-        app:layout_constraintEnd_toStartOf="@+id/refresh"
++        app:layout_constraintEnd_toStartOf="@+id/skin"
+         app:layout_constraintStart_toEndOf="@+id/icon"
+         app:layout_constraintTop_toBottomOf="@+id/name" />
+ 
+@@ -55,6 +55,20 @@
+         app:layout_constraintStart_toEndOf="@+id/icon"
+         app:layout_constraintTop_toTopOf="parent" />
+ 
++    <ImageButton
++        android:id="@+id/skin"
++        android:layout_width="@dimen/_28sdp"
++        android:layout_height="@dimen/_28sdp"
++        android:layout_marginEnd="@dimen/_8sdp"
++        android:background="?android:attr/selectableItemBackgroundBorderless"
++        android:contentDescription="@string/account_change_skin"
++        android:scaleType="centerInside"
++        android:src="@drawable/ic_skin"
++        android:visibility="gone"
++        app:layout_constraintBottom_toBottomOf="parent"
++        app:layout_constraintEnd_toStartOf="@+id/refresh"
++        app:layout_constraintTop_toTopOf="parent" />
++
+     <ImageButton
+         android:id="@+id/refresh"
+         android:layout_width="@dimen/_28sdp"
+diff --git a/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml b/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
+index a06a0c6..e319832 100644
+--- a/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
++++ b/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
+@@ -510,6 +510,41 @@
+                     android:layout_centerVertical="true" />
+             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
++            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
++                android:id="@+id/gameMenuHideButton_layout"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:background="?android:attr/selectableItemBackground"
++                android:padding="@dimen/_12sdp">
++
++                <TextView
++                    android:id="@+id/gameMenuHideButton_title"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/gameMenuHideButton"
++                    android:text="@string/setting_game_menu_hide_button_title"
++                    android:textColor="@color/black_or_white" />
++
++                <TextView
++                    android:id="@+id/gameMenuHideButton_summary"
++                    android:layout_width="0dp"
++                    android:layout_height="wrap_content"
++                    android:layout_below="@+id/gameMenuHideButton_title"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/gameMenuHideButton"
++                    android:text="@string/setting_game_menu_hide_button_desc" />
++
++                <Switch
++                    android:id="@+id/gameMenuHideButton"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentEnd="true"
++                    android:layout_centerVertical="true" />
++            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
++
+             <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                 android:id="@+id/gameMenuMemoryText_layout"
+                 android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/layout/view_game_menu.xml b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+index 6190e93..dc5b930 100644
+--- a/ZalithLauncher/src/main/res/layout/view_game_menu.xml
++++ b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+@@ -136,6 +136,34 @@
+                     android:layout_centerVertical="true" />
+             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
++            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
++                android:id="@+id/hide_menu_button_layout"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginTop="@dimen/_8sdp"
++                android:background="@drawable/background_item"
++                android:padding="@dimen/_8sdp"
++                app:ripple_for_relative="true">
++
++                <TextView
++                    android:id="@+id/hide_menu_button_title"
++                    android:layout_width="0dp"
++                    android:layout_height="wrap_content"
++                    android:layout_centerVertical="true"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/hide_menu_button"
++                    android:text="@string/setting_game_menu_hide_button_title"
++                    android:textColor="@color/black_or_white" />
++
++                <Switch
++                    android:id="@+id/hide_menu_button"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentEnd="true"
++                    android:layout_centerVertical="true" />
++            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
++
+             <androidx.constraintlayout.widget.ConstraintLayout
+                 android:id="@+id/resolution_scaler_layout"
+                 android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/values/strings.xml b/ZalithLauncher/src/main/res/values/strings.xml
+index ce85557..a4b2f17 100644
+--- a/ZalithLauncher/src/main/res/values/strings.xml
++++ b/ZalithLauncher/src/main/res/values/strings.xml
+@@ -295,6 +295,16 @@
+     <string name="account_microsoft_account">Microsoft Account</string>
+     <string name="account_microsoft_xerr_unauthorized">Your Microsoft account login information seems to be expired, this often happens after the account password is changed. Please remove the current account and log in again to reset your login information.</string>
+     <string name="account_local_account">Offline Account</string>
++    <string name="account_change_skin">Change skin</string>
++    <string name="account_skin_invalid">Invalid skin. Pick a PNG of 64x64 (or 64x32; HD sizes like 128x128 also work).</string>
++    <string name="account_skin_saved">Skin saved. It will appear in game on the next launch.</string>
++    <string name="account_skin_reset">Custom skin removed.</string>
++    <string name="account_skin_model_auto">Arm model: automatic</string>
++    <string name="account_skin_model_classic">Arm model: Steve (classic)</string>
++    <string name="account_skin_model_slim">Arm model: Alex (slim)</string>
++    <string name="account_skin_pick_file">Choose skin file</string>
++    <string name="account_skin_apply_model">Apply model</string>
++    <string name="account_skin_remove">Remove skin</string>
+     <string name="account_local_account_empty">Username cannot be empty!</string>
+     <string name="account_local_account_invalid">A valid username only supports English letters (both uppercase and lowercase), numbers, and underscores. The username length must be between 3 and 16 characters. [RED;BOLD]Otherwise, the game may fail to function properly.[/RED;BOLD]\nExamples of valid usernames: Name, Name_, Name123\nExamples of invalid usernames: Name@, N ame, name_name_name_name\nHowever, if you are using mods or plugins that remove this restriction, you can continue using this name. Otherwise, please rename it!</string>
+     <string name="account_login_local_name">Username</string>
+@@ -540,6 +550,8 @@
+     <string name="setting_game_menu_location_left_or_bottom">Bottom Left</string>
+     <string name="setting_game_menu_location_right_or_top">Top Right</string>
+     <string name="setting_game_menu_location_right_or_bottom">Bottom Right</string>
++    <string name="setting_game_menu_hide_button_title">Hide floating menu button</string>
++    <string name="setting_game_menu_hide_button_desc">Hide the gear button in game. Swipe from the right edge of the screen to open the menu.</string>
+     <string name="setting_game_menu_alpha_title">Floating Window Opacity</string>
+     <string name="setting_game_menu_alpha_desc">Set the opacity of the game menu floating window</string>
+     <string name="setting_reboot_tip">This setting has been changed, but requires the app to be restarted to take effect!</string>
+diff --git a/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFW.java b/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFW.java
+index 5cebf10..1b57f8f 100644
+--- a/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFW.java
++++ b/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFW.java
+@@ -1529,4 +1529,91 @@ public class GLFW
+ 
+     public static void glfwRestoreWindow(@NativeType("GLFWwindow *") long window) {
+     }
++
++    // ---- LWJGL 3.4.x API compatibility stubs (not provided by Android, so no-ops / safe defaults) ----
++    private static long mUserPointer34 = 0L;
++
++    public static boolean glfwExtensionSupported(@NativeType("char const *") ByteBuffer extension) {
++        return false;
++    }
++
++    public static float glfwGetWindowOpacity(@NativeType("GLFWwindow *") long window) {
++        return 1.0f;
++    }
++
++    public static void glfwSetWindowOpacity(@NativeType("GLFWwindow *") long window, float opacity) {
++    }
++
++    @NativeType("char const *")
++    public static String glfwGetMonitorName(@NativeType("GLFWmonitor *") long monitor) {
++        return "Android Display";
++    }
++
++    public static long glfwGetMonitorUserPointer(@NativeType("GLFWmonitor *") long monitor) {
++        return 0L;
++    }
++
++    public static void glfwSetMonitorUserPointer(@NativeType("GLFWmonitor *") long monitor, @NativeType("void *") long pointer) {
++    }
++
++    public static long glfwGetWindowUserPointer(@NativeType("GLFWwindow *") long window) {
++        return mUserPointer34;
++    }
++
++    public static void glfwSetWindowUserPointer(@NativeType("GLFWwindow *") long window, @NativeType("void *") long pointer) {
++        mUserPointer34 = pointer;
++    }
++
++    public static void glfwSetGamma(@NativeType("GLFWmonitor *") long monitor, float gamma) {
++    }
++
++    public static void glfwSetWindowAspectRatio(@NativeType("GLFWwindow *") long window, int numer, int denom) {
++    }
++
++    public static void glfwIconifyWindow(@NativeType("GLFWwindow *") long window) {
++    }
++
++    @Nullable
++    @NativeType("unsigned char const *")
++    public static ByteBuffer glfwGetJoystickHats(int jid) {
++        return null;
++    }
++
++    public static long glfwGetProcAddress(@NativeType("char const *") ByteBuffer procname) {
++        throw new UnsupportedOperationException("Unimplemented!");
++    }
++
++    public static long glfwGetProcAddress(@NativeType("char const *") CharSequence procname) {
++        throw new UnsupportedOperationException("Unimplemented!");
++    }
++
++    public static long glfwCreateWindow(int width, int height, @NativeType("char const *") ByteBuffer title, @NativeType("GLFWmonitor *") long monitor, @NativeType("GLFWwindow *") long share) {
++        return mglfwCreateWindow(width, height, "Game", monitor, share);
++    }
++
++    public static void glfwGetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, @NativeType("int *") @Nullable IntBuffer x, @NativeType("int *") @Nullable IntBuffer y, @NativeType("int *") @Nullable IntBuffer w, @NativeType("int *") @Nullable IntBuffer h) { }
++    public static void glfwGetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, @NativeType("int *") @Nullable int[] x, @NativeType("int *") @Nullable int[] y, @NativeType("int *") @Nullable int[] w, @NativeType("int *") @Nullable int[] h) { }
++    public static void glfwSetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, int x, int y, int w, int h) { }
++    public static void glfwResetPreeditText(@NativeType("GLFWwindow *") long window) { }
++    @Nullable public static IntBuffer glfwGetPreeditCandidate(@NativeType("GLFWwindow *") long window, int index) { return null; }
++
++    public static void glfwGetWindowPos(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("int *") IntBuffer xpos, @Nullable @NativeType("int *") IntBuffer ypos) {
++        if (xpos != null && xpos.remaining() > 0) xpos.put(xpos.position(), 0);
++        if (ypos != null && ypos.remaining() > 0) ypos.put(ypos.position(), 0);
++    }
++
++    public static void glfwGetWindowFrameSize(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("int *") IntBuffer left, @Nullable @NativeType("int *") IntBuffer top, @Nullable @NativeType("int *") IntBuffer right, @Nullable @NativeType("int *") IntBuffer bottom) {
++        if (left != null && left.remaining() > 0) left.put(left.position(), 0);
++        if (top != null && top.remaining() > 0) top.put(top.position(), 0);
++        if (right != null && right.remaining() > 0) right.put(right.position(), 0);
++        if (bottom != null && bottom.remaining() > 0) bottom.put(bottom.position(), 0);
++    }
++
++    public static void glfwGetWindowContentScale(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("float *") FloatBuffer xscale, @Nullable @NativeType("float *") FloatBuffer yscale) {
++        if (xscale != null && xscale.remaining() > 0) xscale.put(xscale.position(), 1.0f);
++        if (yscale != null && yscale.remaining() > 0) yscale.put(yscale.position(), 1.0f);
++    }
++
++    public static void glfwInitAllocator(@Nullable @NativeType("GLFWallocator const *") GLFWAllocator allocator) {
++    }
+ }
+diff --git a/scripts/build-lwjgl341.sh b/scripts/build-lwjgl341.sh
+new file mode 100755
+index 0000000..c24785e
+--- /dev/null
++++ b/scripts/build-lwjgl341.sh
+@@ -0,0 +1,21 @@
++#!/bin/sh
++# Rebuild LWJGL 3.4.1 component for ZalithLauncher 1 (GLFW emulation layer from jre_lwjgl3glfw + stock LWJGL 3.4.1 jars)
++# Usage: scripts/build-lwjgl341.sh <dir-with-stock-lwjgl-3.4.1-jars>   (needs JDK 17+ : javac + jar)
++set -e
++ROOT="$(cd "$(dirname "$0")/.." && pwd)"
++STOCK="$(cd "${1:?path to stock LWJGL 3.4.1 jars (lwjgl*.jar)}" && pwd)"
++OUT="$ROOT/ZalithLauncher/src/main/assets/components/lwjgl3_341"
++WORK="$(mktemp -d)"
++CP="$(ls "$STOCK"/*.jar | tr '\n' ':')$ROOT/jre_lwjgl3glfw/libs/jsr305.jar"
++mkdir -p "$WORK/classes" "$WORK/merge" "$OUT"
++find "$ROOT/jre_lwjgl3glfw/src/main/java" -name '*.java' > "$WORK/srcs.txt"
++javac -source 8 -target 8 -Xlint:-options -nowarn -cp "$CP" -d "$WORK/classes" @"$WORK/srcs.txt"
++cp -r "$WORK/classes/." "$WORK/merge/"
++for m in lwjgl-glfw lwjgl-opengl; do (cd "$WORK/merge" && unzip -nq "$STOCK/$m.jar" -x 'META-INF/*' 'module-info.class'); done
++rm -rf "$WORK/merge/net/java/openjdk/cacio/ctc"
++printf 'Manifest-Version: 1.0\nAutomatic-Module-Name: org.lwjgl\n' > "$WORK/MANIFEST.MF"
++jar cfm "$OUT/lwjgl-3.4.1-merged-modules.jar" "$WORK/MANIFEST.MF" -C "$WORK/merge" .
++for m in lwjgl lwjgl-stb lwjgl-tinyfd lwjgl-nanovg lwjgl-freetype lwjgl-spng lwjgl-openal; do cp "$STOCK/$m.jar" "$OUT/"; done
++date +%s > "$OUT/version"
++rm -rf "$WORK"
++echo "OK -> $OUT"

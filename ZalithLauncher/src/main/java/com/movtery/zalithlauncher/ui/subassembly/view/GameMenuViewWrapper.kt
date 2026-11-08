@@ -32,6 +32,7 @@ class GameMenuViewWrapper(
     private val memoryText: String = AllSettings.gameMenuMemoryText.getValue()
     private var showMemory: Boolean = false
     private var showFPS: Boolean = false
+    private var hideButton: Boolean = false
     private var visible: Boolean = false
 
     private var scopeFx: IFxScopeControl? = null
@@ -48,6 +49,7 @@ class GameMenuViewWrapper(
             addViewLifecycle(object : IFxViewLifecycle {
                 override fun initView(holder: FxViewHolder) {
                     holder.view.alpha = AllSettings.gameMenuAlpha.getValue().toFloat() / 100f
+                    applyButtonVisibility(holder.view)
 
                     updateInfoText(holder.view)
                 }
@@ -85,7 +87,7 @@ class GameMenuViewWrapper(
      * 根据三个条件判断是否显示悬浮窗（是否想要显示、是否展示内存信息、是否展示FPS）
      */
     private fun thinkForVisibility() {
-        val v1 = visible || showMemory || showFPS
+        val v1 = (visible && !hideButton) || showMemory || showFPS
         if (v1) {
             if (scopeFx != null) {
                 updateInfoText()
@@ -106,6 +108,14 @@ class GameMenuViewWrapper(
     private fun refreshState() {
         showMemory = AllSettings.gameMenuShowMemory.getValue()
         showFPS = AllSettings.gameMenuShowFPS.getValue()
+        hideButton = AllSettings.gameMenuHideButton.getValue()
+        scopeFx?.getView()?.let { applyButtonVisibility(it) }
+    }
+
+    /** Show or hide only the gear icon (FPS / memory text stays visible if enabled) */
+    private fun applyButtonVisibility(view: View) {
+        view.findViewById<View>(R.id.settings_button)?.visibility =
+            if (hideButton) View.GONE else View.VISIBLE
     }
 
     private fun updateInfoText() {

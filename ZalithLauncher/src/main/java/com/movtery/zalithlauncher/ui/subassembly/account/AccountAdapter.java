@@ -56,6 +56,12 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.Holder> 
         void onRefresh(MinecraftAccount account);
 
         void onDelete(MinecraftAccount account);
+
+        /** Offline accounts only: pick a local skin image */
+        default void onChangeSkin(MinecraftAccount account) {}
+
+        /** Offline accounts only: remove the custom skin (long press on the skin button) */
+        default void onResetSkin(MinecraftAccount account) {}
     }
 
     public class Holder extends RecyclerView.ViewHolder {
@@ -73,7 +79,13 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.Holder> 
                 itemView.setOnClickListener(v -> accountUpdateListener.onViewClick(account));
                 binding.refresh.setOnClickListener(v -> accountUpdateListener.onRefresh(account));
                 binding.delete.setOnClickListener(v -> accountUpdateListener.onDelete(account));
+                binding.skin.setOnClickListener(v -> accountUpdateListener.onChangeSkin(account));
+                binding.skin.setOnLongClickListener(v -> {
+                    accountUpdateListener.onResetSkin(account);
+                    return true;
+                });
             }
+            binding.skin.setVisibility(AccountUtils.isNoLoginRequired(account) && !AccountUtils.isMicrosoftAccount(account) && !AccountUtils.isOtherLoginAccount(account) ? View.VISIBLE : View.GONE);
 
             binding.name.setText(account.username);
 

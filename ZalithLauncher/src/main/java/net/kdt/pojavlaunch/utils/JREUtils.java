@@ -386,8 +386,37 @@ public final class JREUtils {
         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
 
         //Add automatically generated args
-        userArgs.add("-Xms" + AllSettings.getRamAllocation().getValue().getValue() + "M");
-        userArgs.add("-Xmx" + AllSettings.getRamAllocation().getValue().getValue() + "M");
+        final int xmx = AllSettings.getRamAllocation().getValue().getValue();
+        // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
+        // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
+        final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;
+        // With SerialGC the young generation is sized from the INITIAL heap (1/3 of -Xms). A tiny -Xms
+        // (256M) means a ~85M young gen, so GC runs several times a second and the old generation keeps
+        // growing through repeated full (stop-the-world, single-threaded) collections - on a slow phone
+        // CPU each of those can freeze the game for 1-3 seconds. So: start at half of -Xmx and pin the
+        // young generation to a fixed size. Pages are only touched when used, so this does not raise RAM use.
+        final int xms = lowRam ? Math.max(Math.min(xmx, 384), xmx / 2) : xmx;
+        userArgs.add("-Xms" + xms + "M");
+        userArgs.add("-Xmx" + xmx + "M");
+        if (lowRam) {
+            boolean userSetGc = false;
+            boolean userSetCodeCache = false;
+            boolean userSetNewSize = false;
+            for (String a : userArgs) {
+                if (a.startsWith("-XX:+Use") && a.endsWith("GC")) userSetGc = true;
+                if (a.startsWith("-XX:ReservedCodeCacheSize")) userSetCodeCache = true;
+                if (a.startsWith("-Xmn") || a.startsWith("-XX:NewSize") || a.startsWith("-XX:MaxNewSize") || a.startsWith("-XX:NewRatio")) userSetNewSize = true;
+            }
+            if (!userSetGc) userArgs.add("-XX:+UseSerialGC");
+            if (!userSetCodeCache) userArgs.add("-XX:ReservedCodeCacheSize=64m");
+            if (!userSetNewSize && !userSetGc) {
+                // Young gen = 1/3 of the heap, clamped to 96..256 MB (never more than half of -Xms)
+                final int young = Math.min(Math.min(256, xms / 2), Math.max(96, xmx / 3));
+                userArgs.add("-Xmn" + young + "M");
+            }
+            userArgs.add("-XX:-UsePerfData");
+            Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB): Xms=" + xms + "M");
+        }
         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
 
         // Force LWJGL to use the Freetype library intended for it, instead of using the one

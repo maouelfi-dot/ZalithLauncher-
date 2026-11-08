@@ -7,5 +7,7 @@ enum class Components(val component: String, val displayName: String, val summar
     CACIOCAVALLO("caciocavallo", "caciocavallo", R.string.splash_screen_cacio, false),
     CACIOCAVALLO17("caciocavallo17", "caciocavallo 17", R.string.splash_screen_cacio, false),
     LWJGL3("lwjgl3", "LWJGL 3.3.6", R.string.splash_screen_lwjgl, false),
+    // native libraries (.so) must live in app-private storage: external storage is mounted noexec
+    LWJGL3_341("lwjgl3_341", "LWJGL 3.4.1", R.string.splash_screen_lwjgl, true),
     COMPONENTS("components", "Launcher Components", R.string.splash_screen_components, true)
 }

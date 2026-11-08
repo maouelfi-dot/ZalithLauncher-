@@ -3,6 +3,7 @@ package com.movtery.zalithlauncher.launch
 import androidx.collection.ArrayMap
 import com.movtery.zalithlauncher.InfoDistributor
 import com.movtery.zalithlauncher.feature.accounts.AccountUtils
+import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
 import com.movtery.zalithlauncher.feature.customprofilepath.ProfilePathHome
 import com.movtery.zalithlauncher.feature.customprofilepath.ProfilePathHome.Companion.getLibrariesHome
 import com.movtery.zalithlauncher.feature.version.Version
@@ -27,13 +28,16 @@ class LaunchArgs(
     private val runtime: Runtime,
     private val launchClassPath: String
 ) {
+    /** Game versions that ask for LWJGL >= 3.4.1 (e.g. the new 26.x versions) run on the bundled 3.4.1 component. */
+    private val useLwjgl341: Boolean by lazy { LwjglComponent.shouldUse341(versionInfo) }
+
     fun getAllArgs(): List<String> {
         val argsList: MutableList<String> = ArrayList()
 
         argsList.addAll(getJavaArgs())
         argsList.addAll(getMinecraftJVMArgs())
         argsList.add("-cp")
-        argsList.add("${Tools.getLWJGL3ClassPath()}:$launchClassPath")
+        argsList.add("${if (useLwjgl341) LwjglComponent.classPath(true) else Tools.getLWJGL3ClassPath()}:$launchClassPath")
 
         if (runtime.javaVersion > 8) {
             argsList.add("--add-exports")
@@ -57,6 +61,12 @@ class LaunchArgs(
             } else {
                 argsList.add("-javaagent:${LibPath.AUTHLIB_INJECTOR.absolutePath}=${account.otherBaseUrl}")
             }
+        } else if (AccountUtils.isNoLoginRequired(account)) {
+            // Offline account with a custom skin: serve it through a local skin server + authlib-injector
+            OfflineSkinServer.prepare(account)?.let { port ->
+                argsList.add("-javaagent:${LibPath.AUTHLIB_INJECTOR.absolutePath}=http://localhost:$port")
+                argsList.add("-Dauthlibinjector.side=client")
+            }
         }
 
         argsList.addAll(getCacioJavaArgs(runtime.javaVersion == 8))
@@ -71,6 +81,8 @@ class LaunchArgs(
             argsList.add("-Djava.library.path=$dirPath:${PathManager.DIR_NATIVE_LIB}")
             argsList.add("-Djna.boot.library.path=$dirPath")
         }
+
+        if (useLwjgl341) argsList.addAll(LwjglComponent.nativeArgs())
 
         return argsList
     }

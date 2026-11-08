@@ -5,9 +5,11 @@ import static android.content.Context.INPUT_METHOD_SERVICE;
 
 import android.content.Context;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.Selection;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.NonNull;
@@ -32,8 +34,15 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     }
 
 
+    private static final int SHOW_IME_MAX_ATTEMPTS = 6;
+    private static final long SHOW_IME_RETRY_DELAY_MS = 60;
+    private static final long FOCUS_LOSS_GRACE_MS = 250;
+
     private boolean mIsDoingInternalChanges = false;
     private CharacterSenderStrategy mCharacterSender;
+    private int mShowImeAttempts = 0;
+    private final Runnable mShowImeRunnable = this::tryShowSoftInput;
+    private final Runnable mDisableIfUnfocusedRunnable = () -> { if(!hasWindowFocus()) disable(); };
 
     /**
      * When we change from app to app, the keyboard gets disabled.
@@ -42,7 +51,12 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {
         super.onWindowFocusChanged(hasWindowFocus);
-        disable();
+        removeCallbacks(mDisableIfUnfocusedRunnable);
+        // Regaining focus never needs to tear the input down. Doing it anyway made the keyboard
+        // flicker/"kejang" on low-end phones, because opening the IME can briefly flip window focus.
+        if (hasWindowFocus) return;
+        // Wait a moment so a short focus flicker doesn't kill the keyboard, but a real app switch still does.
+        postDelayed(mDisableIfUnfocusedRunnable, FOCUS_LOSS_GRACE_MS);
     }
 
     /**
@@ -62,14 +76,29 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
      * Toggle on and off the soft keyboard, depending of the state
      */
     public void switchKeyboardState(){
-        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
         // Allow, regardless of whether or not a hardware keyboard is declared
         if(hasFocus()){
             clear();
             disable();
         }else{
             enable();
-            imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
+            mShowImeAttempts = 0;
+            // Don't ask for the IME in the same frame we made the view visible: the view isn't laid out
+            // or focused yet, so on low-RAM phones the request is dropped and the keyboard shows up late.
+            post(mShowImeRunnable);
+        }
+    }
+
+    /** Ask for the soft keyboard, retrying a few times until the view and window are ready. */
+    private void tryShowSoftInput(){
+        if(!isEnabled() || getVisibility() != VISIBLE) return; // disabled again in the meantime
+        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+        if(imm == null) return;
+        if(!hasFocus()) requestFocus();
+        boolean shown = isAttachedToWindow() && hasWindowFocus()
+                && imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT);
+        if(!shown && ++mShowImeAttempts < SHOW_IME_MAX_ATTEMPTS){
+            postDelayed(mShowImeRunnable, SHOW_IME_RETRY_DELAY_MS);
         }
     }
 
@@ -100,6 +129,7 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
 
     /** Lose ability to exist, take focus and have some text being input */
     public void disable(){
+        removeCallbacks(mShowImeRunnable);
         clear();
         setVisibility(GONE);
         clearFocus();
@@ -122,6 +152,10 @@ public class TouchCharInput extends androidx.appcompat.widget.AppCompatEditText 
     private void setup(){
         // Using TextWatcher instead of overriding onTextChanged because some Huawei firmware
         // calls setText in constructor, causing havoc for our listener
+        // Less work for the keyboard on weak phones: no suggestion/autocorrect engine and no fullscreen
+        // "extract" editor when the phone is in landscape (a big source of lag when the keyboard opens).
+        setInputType(getInputType() | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        setImeOptions(getImeOptions() | EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN);
         addTextChangedListener(new InputTextWatcher());
         setOnEditorActionListener((textView, i, keyEvent) -> {
             sendEnter();

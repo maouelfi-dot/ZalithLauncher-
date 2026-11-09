@@ -492,6 +492,14 @@ public class LauncherActivity extends BaseActivity {
         super.onResume();
         setPageOpacity(AllSettings.getPageOpacity().getValue());
         VersionsManager.INSTANCE.refresh("LauncherActivity:onResume", false);
+        if (mVideoBackground != null) mVideoBackground.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Free the video decoder while the game / another screen is in front (saves RAM)
+        if (mVideoBackground != null) mVideoBackground.onPause();
     }
 
     @Override
@@ -503,6 +511,7 @@ public class LauncherActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mVideoBackground != null) mVideoBackground.onDestroy();
         binding.progressLayout.cleanUpObservers();
         ProgressKeeper.removeTaskCountListener(binding.progressLayout);
         ProgressKeeper.removeTaskCountListener(mProgressServiceKeeper);
@@ -584,7 +593,25 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
+    private com.movtery.zalithlauncher.feature.background.VideoBackgroundController mVideoBackground;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        return super.dispatchTouchEvent(ev);
+    }
+
     private void refreshBackground() {
+        if (mVideoBackground == null) {
+            mVideoBackground = new com.movtery.zalithlauncher.feature.background.VideoBackgroundController(binding.videoBackgroundView);
+        }
+        java.io.File video = BackgroundManager.getBackgroundVideo(BackgroundType.MAIN_MENU);
+        mVideoBackground.setVideo(video);
+        if (video != null) {
+            // Video selected: plain colour behind it, default top bar colours
+            binding.backgroundView.setImageDrawable(ContextCompat.getDrawable(this, R.color.background_app));
+            refreshTopBarColor(false);
+            return;
+        }
         BackgroundManager.setBackgroundImage(this, BackgroundType.MAIN_MENU, binding.backgroundView, this::refreshTopBarColor);
     }
 

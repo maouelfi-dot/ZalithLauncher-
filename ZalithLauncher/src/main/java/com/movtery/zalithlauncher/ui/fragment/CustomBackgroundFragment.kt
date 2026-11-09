@@ -93,7 +93,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
                     override fun onFileSelected(file: File?, path: String?) {
                         val fileName = file!!.name
 
-                        val image = isImage(file)
+                        val image = isImage(file) || BackgroundManager.isVideo(file)
                         val filesButton = FilesButton()
                         filesButton.setButtonVisibility(false, false, true, true, true, image)
                         //默认虚拟鼠标不支持分享、重命名、删除操作
@@ -155,7 +155,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
                 }
 
                 returnButton.setOnClickListener { ZHTools.onBackPressed(requireActivity()) }
-                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*")) }
+                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*", "video/*")) }
                 refreshButton.setOnClickListener {
                     fileRecyclerView.listFileAt(backgroundPath())
                 }
@@ -223,6 +223,15 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
 
     private fun refreshBackgroundPreview() {
         binding.preview.let {
+            BackgroundManager.getBackgroundVideo(backgroundType)?.apply {
+                // Preview a video selection with its first frame
+                Glide.with(requireActivity())
+                    .load(this)
+                    .fitCenter()
+                    .into(DrawableImageViewTarget(it))
+                return
+            }
+
             BackgroundManager.getBackgroundImage(backgroundType)?.apply {
                 Glide.with(requireActivity())
                     .load(this)

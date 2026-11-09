@@ -1529,4 +1529,91 @@ public class GLFW
 
     public static void glfwRestoreWindow(@NativeType("GLFWwindow *") long window) {
     }
+
+    // ---- LWJGL 3.4.x API compatibility stubs (not provided by Android, so no-ops / safe defaults) ----
+    private static long mUserPointer34 = 0L;
+
+    public static boolean glfwExtensionSupported(@NativeType("char const *") ByteBuffer extension) {
+        return false;
+    }
+
+    public static float glfwGetWindowOpacity(@NativeType("GLFWwindow *") long window) {
+        return 1.0f;
+    }
+
+    public static void glfwSetWindowOpacity(@NativeType("GLFWwindow *") long window, float opacity) {
+    }
+
+    @NativeType("char const *")
+    public static String glfwGetMonitorName(@NativeType("GLFWmonitor *") long monitor) {
+        return "Android Display";
+    }
+
+    public static long glfwGetMonitorUserPointer(@NativeType("GLFWmonitor *") long monitor) {
+        return 0L;
+    }
+
+    public static void glfwSetMonitorUserPointer(@NativeType("GLFWmonitor *") long monitor, @NativeType("void *") long pointer) {
+    }
+
+    public static long glfwGetWindowUserPointer(@NativeType("GLFWwindow *") long window) {
+        return mUserPointer34;
+    }
+
+    public static void glfwSetWindowUserPointer(@NativeType("GLFWwindow *") long window, @NativeType("void *") long pointer) {
+        mUserPointer34 = pointer;
+    }
+
+    public static void glfwSetGamma(@NativeType("GLFWmonitor *") long monitor, float gamma) {
+    }
+
+    public static void glfwSetWindowAspectRatio(@NativeType("GLFWwindow *") long window, int numer, int denom) {
+    }
+
+    public static void glfwIconifyWindow(@NativeType("GLFWwindow *") long window) {
+    }
+
+    @Nullable
+    @NativeType("unsigned char const *")
+    public static ByteBuffer glfwGetJoystickHats(int jid) {
+        return null;
+    }
+
+    public static long glfwGetProcAddress(@NativeType("char const *") ByteBuffer procname) {
+        throw new UnsupportedOperationException("Unimplemented!");
+    }
+
+    public static long glfwGetProcAddress(@NativeType("char const *") CharSequence procname) {
+        throw new UnsupportedOperationException("Unimplemented!");
+    }
+
+    public static long glfwCreateWindow(int width, int height, @NativeType("char const *") ByteBuffer title, @NativeType("GLFWmonitor *") long monitor, @NativeType("GLFWwindow *") long share) {
+        return mglfwCreateWindow(width, height, "Game", monitor, share);
+    }
+
+    public static void glfwGetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, @NativeType("int *") @Nullable IntBuffer x, @NativeType("int *") @Nullable IntBuffer y, @NativeType("int *") @Nullable IntBuffer w, @NativeType("int *") @Nullable IntBuffer h) { }
+    public static void glfwGetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, @NativeType("int *") @Nullable int[] x, @NativeType("int *") @Nullable int[] y, @NativeType("int *") @Nullable int[] w, @NativeType("int *") @Nullable int[] h) { }
+    public static void glfwSetPreeditCursorRectangle(@NativeType("GLFWwindow *") long window, int x, int y, int w, int h) { }
+    public static void glfwResetPreeditText(@NativeType("GLFWwindow *") long window) { }
+    @Nullable public static IntBuffer glfwGetPreeditCandidate(@NativeType("GLFWwindow *") long window, int index) { return null; }
+
+    public static void glfwGetWindowPos(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("int *") IntBuffer xpos, @Nullable @NativeType("int *") IntBuffer ypos) {
+        if (xpos != null && xpos.remaining() > 0) xpos.put(xpos.position(), 0);
+        if (ypos != null && ypos.remaining() > 0) ypos.put(ypos.position(), 0);
+    }
+
+    public static void glfwGetWindowFrameSize(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("int *") IntBuffer left, @Nullable @NativeType("int *") IntBuffer top, @Nullable @NativeType("int *") IntBuffer right, @Nullable @NativeType("int *") IntBuffer bottom) {
+        if (left != null && left.remaining() > 0) left.put(left.position(), 0);
+        if (top != null && top.remaining() > 0) top.put(top.position(), 0);
+        if (right != null && right.remaining() > 0) right.put(right.position(), 0);
+        if (bottom != null && bottom.remaining() > 0) bottom.put(bottom.position(), 0);
+    }
+
+    public static void glfwGetWindowContentScale(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("float *") FloatBuffer xscale, @Nullable @NativeType("float *") FloatBuffer yscale) {
+        if (xscale != null && xscale.remaining() > 0) xscale.put(xscale.position(), 1.0f);
+        if (yscale != null && yscale.remaining() > 0) yscale.put(yscale.position(), 1.0f);
+    }
+
+    public static void glfwInitAllocator(@Nullable @NativeType("GLFWallocator const *") GLFWAllocator allocator) {
+    }
 }

@@ -3,6 +3,7 @@ package com.movtery.zalithlauncher.feature.unpack
 import android.content.Context
 import android.content.res.AssetManager
 import com.movtery.zalithlauncher.feature.log.Logging.i
+import com.movtery.zalithlauncher.launch.LwjglComponent
 import com.movtery.zalithlauncher.utils.path.PathManager
 import net.kdt.pojavlaunch.Tools
 import org.apache.commons.io.FileUtils
@@ -53,11 +54,26 @@ class UnpackComponentsTask(val context: Context, val component: Components) : Ab
 
     override fun run() {
         listener?.onTaskStart()
-        val fileList = am.list("components/${component.component}")
-        for (fileName in fileList!!) {
-            Tools.copyAssetFile(context, "components/${component.component}/$fileName", "$rootDir/${component.component}", true)
-        }
+        copyAssetDir("components/${component.component}", "$rootDir/${component.component}")
         listener?.onTaskEnd()
+    }
+
+    /**
+     * Copy an asset directory recursively. Sub-folders of a "natives" folder are ABI folders
+     * (arm64-v8a, armeabi-v7a, ...): only the one matching this device is unpacked to save space/time.
+     */
+    private fun copyAssetDir(assetPath: String, outputDir: String) {
+        val children = am.list(assetPath) ?: return
+        for (name in children) {
+            val childAsset = "$assetPath/$name"
+            val grandChildren = am.list(childAsset)
+            if (!grandChildren.isNullOrEmpty()) {
+                if (assetPath.endsWith("/natives") && name != LwjglComponent.abiDirName()) continue
+                copyAssetDir(childAsset, "$outputDir/$name")
+            } else {
+                Tools.copyAssetFile(context, childAsset, outputDir, true)
+            }
+        }
     }
 
     private fun requestEmptyParentDir(file: File) {

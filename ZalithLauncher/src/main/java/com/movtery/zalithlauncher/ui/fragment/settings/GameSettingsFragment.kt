@@ -170,6 +170,13 @@ class GameSettingsFragment : AbstractSettingsFragment(R.layout.settings_fragment
             openGameMenuFPS()
         }
 
+        SwitchSettingsWrapper(
+            context,
+            AllSettings.gameMenuHideButton,
+            binding.gameMenuHideButtonLayout,
+            binding.gameMenuHideButton
+        )
+
         EditTextSettingsWrapper(
             AllSettings.gameMenuMemoryText,
             binding.gameMenuMemoryTextLayout,

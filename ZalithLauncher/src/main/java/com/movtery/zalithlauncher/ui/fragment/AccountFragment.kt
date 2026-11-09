@@ -16,6 +16,8 @@ import android.view.animation.LayoutAnimationController
 import android.widget.EditText
 import android.widget.PopupWindow
 import android.widget.Toast
+import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -37,6 +39,8 @@ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils
 import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.CheckResultListener
 import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.checkUsageAllowed
 import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.openDialog
+import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
+import com.movtery.zalithlauncher.feature.accounts.SkinPreview
 import com.movtery.zalithlauncher.feature.accounts.OtherLoginHelper
 import com.movtery.zalithlauncher.feature.log.Logging
 import com.movtery.zalithlauncher.feature.login.OtherLoginApi
@@ -108,6 +112,101 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
 
     private lateinit var mProgressDialog: AlertDialog
 
+    /** Offline account that is currently choosing a custom skin */
+    private var mSkinTargetAccount: MinecraftAccount? = null
+    private val mSkinPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        val account = mSkinTargetAccount
+        mSkinTargetAccount = null
+        if (uri == null || account == null) return@registerForActivityResult
+        val ctx = requireContext()
+        runCatching {
+            val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("cannot read file")
+            if (bytes.size > 2 * 1024 * 1024 || !OfflineSkinServer.isValidSkin(bytes)) {
+                Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
+                return@runCatching
+            }
+            val target = OfflineSkinServer.skinFileOf(account)
+            target.parentFile?.mkdirs()
+            target.writeBytes(bytes)
+            Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_LONG).show()
+            reloadAccounts()
+        }.onFailure { e ->
+            Logging.e(TAG, "Failed to import skin: ${e.message}")
+            Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * Skin dialog for an offline account: choose the arm model (auto / Steve / Alex), pick a PNG file,
+     * or remove the custom skin.
+     */
+    private fun showSkinDialog(account: MinecraftAccount) {
+        val ctx = requireContext()
+        val models = arrayOf<String?>(null, "classic", "slim")
+        val names = arrayOf(
+            getString(R.string.account_skin_model_auto),
+            getString(R.string.account_skin_model_classic),
+            getString(R.string.account_skin_model_slim)
+        )
+        var selected = models.indexOf(OfflineSkinServer.getModel(account)).coerceAtLeast(0)
+
+        val dp = ctx.resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+
+        val preview = android.widget.ImageView(ctx).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            layoutParams = android.widget.LinearLayout.LayoutParams(px(96), px(192)).apply { marginEnd = px(16) }
+        }
+        val group = android.widget.RadioGroup(ctx).apply {
+            orientation = android.widget.RadioGroup.VERTICAL
+            names.forEachIndexed { i, n ->
+                addView(android.widget.RadioButton(ctx).apply {
+                    id = 1000 + i
+                    text = n
+                    isChecked = i == selected
+                    setPadding(px(4), px(10), px(4), px(10))
+                })
+            }
+        }
+        var showBack = false
+        fun refreshPreview() {
+            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack)
+            if (bmp != null) preview.setImageBitmap(bmp) else preview.setImageDrawable(null)
+        }
+        preview.setOnClickListener { showBack = !showBack; refreshPreview() }
+        group.setOnCheckedChangeListener { _, checkedId ->
+            selected = (checkedId - 1000).coerceIn(0, models.size - 1)
+            refreshPreview()
+        }
+        refreshPreview()
+        val content = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(px(24), px(12), px(24), px(4))
+            addView(preview)
+            addView(group)
+        }
+
+        AlertDialog.Builder(ctx)
+            .setTitle(R.string.account_change_skin)
+            .setView(android.widget.ScrollView(ctx).apply { addView(content) })
+            .setPositiveButton(R.string.account_skin_pick_file) { _, _ ->
+                OfflineSkinServer.setModel(account, models[selected])
+                mSkinTargetAccount = account
+                mSkinPicker.launch(arrayOf("image/png"))
+            }
+            .setNeutralButton(R.string.account_skin_apply_model) { _, _ ->
+                OfflineSkinServer.setModel(account, models[selected])
+                Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.account_skin_remove) { _, _ ->
+                OfflineSkinServer.resetSkin(account)
+                Toast.makeText(ctx, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
+                reloadAccounts()
+            }
+            .show()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -139,6 +238,16 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
                 }
             }
 
+            override fun onChangeSkin(account: MinecraftAccount) {
+                showSkinDialog(account)
+            }
+
+            override fun onResetSkin(account: MinecraftAccount) {
+                OfflineSkinServer.resetSkin(account)
+                Toast.makeText(context, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
+                reloadAccounts()
+            }
+
             override fun onDelete(account: MinecraftAccount) {
                 TipDialog.Builder(context)
                     .setTitle(R.string.generic_warning)
@@ -152,6 +261,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
                             File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".png")
                         if (accountFile.exists()) FileUtils.deleteQuietly(accountFile)
                         if (userSkinFile.exists()) FileUtils.deleteQuietly(userSkinFile)
+                        File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
                         reloadAccounts()
                     }.showDialog()
             }

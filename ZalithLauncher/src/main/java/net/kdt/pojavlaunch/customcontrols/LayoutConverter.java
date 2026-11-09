@@ -54,6 +54,9 @@ public class LayoutConverter {
     }
 
     private static CustomControls loadAndConvertIfNecessary(Context ctx, JSONObject layoutJobj, String jsonLayoutData, String jsonPath, boolean showError) throws Exception {
+        if (Zl2LayoutConverter.isZl2Layout(layoutJobj)) { //Zalith Launcher 2 layout (converted on load, the file is left untouched)
+            return Zl2LayoutConverter.convert(ctx, layoutJobj);
+        }
         if (!layoutJobj.has("version")) { //v1 layout
             CustomControls layout = LayoutConverter.convertV1Layout(layoutJobj);
             if (jsonPath != null) layout.save(jsonPath);

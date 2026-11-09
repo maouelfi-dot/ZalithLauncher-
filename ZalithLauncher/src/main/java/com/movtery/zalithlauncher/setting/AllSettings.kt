@@ -30,6 +30,7 @@ class AllSettings {
 
         @JvmStatic
         val sustainedPerformance = BooleanSettingUnit("sustainedPerformance", false)
+        val forceLwjgl341 = BooleanSettingUnit("forceLwjgl341", false)
 
         @JvmStatic
         val alternateSurface = BooleanSettingUnit("alternate_surface", false)
@@ -141,6 +142,10 @@ class AllSettings {
         @JvmStatic
         val gameMenuAlpha = IntSettingUnit("gameMenuAlpha", 100)
 
+        /** Hide the floating gear button in game (menu can still be opened by swiping from the right edge) */
+        @JvmStatic
+        val gameMenuHideButton = BooleanSettingUnit("gameMenuHideButton", false)
+
         // Launcher
         @JvmStatic
         val checkLibraries = BooleanSettingUnit("checkLibraries", true)
@@ -167,7 +172,7 @@ class AllSettings {
         val animation = BooleanSettingUnit("animation", true)
 
         @JvmStatic
-        val animationSpeed = IntSettingUnit("animationSpeed", 600)
+        val animationSpeed = IntSettingUnit("animationSpeed", 250)
 
         @JvmStatic
         val pageOpacity = IntSettingUnit("pageOpacity", 100)

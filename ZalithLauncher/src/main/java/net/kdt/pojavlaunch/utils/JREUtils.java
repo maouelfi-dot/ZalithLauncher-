@@ -331,6 +331,14 @@ public final class JREUtils {
             }
 
             envMap.put("ZALITH_VERSION_CODE", String.valueOf(ZHTools.getVersionCode()));
+
+            try {
+                String ysmLib = com.movtery.zalithlauncher.feature.ysm.YsmSupport.prepareCoreLib(
+                        new File(gameVersion.getGameDir(), "mods"));
+                if (ysmLib != null) envMap.put("YSM_CORE_LIB", ysmLib);
+            } catch (Throwable t) {
+                Logging.e("JREUtils", "YSM prepare failed: " + t);
+            }
         }
 
         for (Map.Entry<String, String> env : envMap.entrySet()) {
@@ -360,6 +368,48 @@ public final class JREUtils {
         }
     }
 
+    /** Cek apakah shader pack sedang dipakai (Iris/Oculus: config/iris.properties, OptiFine: optionsshaders.txt). */
+    private static boolean isShaderPackActive(Version gameVersion) {
+        if (gameVersion == null) return false;
+        try {
+            File gameDir = gameVersion.getGameDir();
+            boolean found = false;
+            boolean enabled = true;
+            File iris = new File(gameDir, "config/iris.properties");
+            if (iris.isFile()) {
+                try (BufferedReader r = new BufferedReader(new FileReader(iris))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        line = line.trim();
+                        if (line.startsWith("shaderPack=")) {
+                            String v = line.substring("shaderPack=".length()).trim();
+                            if (!v.isEmpty() && !v.equals("(internal)")) found = true;
+                        } else if (line.equals("enableShaders=false")) {
+                            enabled = false;
+                        }
+                    }
+                }
+                if (found && enabled) return true;
+            }
+            File optifine = new File(gameDir, "optionsshaders.txt");
+            if (optifine.isFile()) {
+                try (BufferedReader r = new BufferedReader(new FileReader(optifine))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        line = line.trim();
+                        if (line.startsWith("shaderPack=")) {
+                            String v = line.substring("shaderPack=".length()).trim();
+                            return !v.isEmpty() && !v.equalsIgnoreCase("OFF") && !v.equals("(internal)");
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Logging.e("JREUtils", "Shader check failed: " + t);
+        }
+        return false;
+    }
+
     private static void launchJavaVM(
             final AppCompatActivity activity,
             String runtimeHome,
@@ -386,8 +436,52 @@ public final class JREUtils {
         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
 
         //Add automatically generated args
-        userArgs.add("-Xms" + AllSettings.getRamAllocation().getValue().getValue() + "M");
-        userArgs.add("-Xmx" + AllSettings.getRamAllocation().getValue().getValue() + "M");
+        int xmxSetting = AllSettings.getRamAllocation().getValue().getValue();
+        // Shader aktif: tekstur/framebuffer shader memakai RAM native (berbagi dengan GPU di HP).
+        // Heap yang terlalu besar membuat Android mematikan game atau memaksa swap -> FPS jatuh / kejang.
+        final long deviceMb = Tools.getTotalDeviceMemory(activity);
+        // Sisakan RAM untuk Android + RAM native (GL, audio, lib mod). Heap yang menghabiskan seluruh RAM
+        // HP membuat game dimatikan Android tanpa pesan error (crash "tidak jelas") terutama di HP RAM kecil.
+        // Shader aktif butuh sisa lebih besar karena tekstur/framebuffer ikut memakai RAM.
+        final boolean shaderOn = isShaderPackActive(gameVersion);
+        final int nativeReserve = shaderOn ? (deviceMb < 3072 ? 900 : 1200) : (deviceMb < 3072 ? 700 : 900);
+        final int cap = (int) Math.max(640, deviceMb - nativeReserve);
+        if (xmxSetting > cap) {
+            Logger.appendToLog("Batas heap diturunkan " + xmxSetting + "M -> " + cap + "M (RAM HP " + deviceMb + "M"
+                    + (shaderOn ? ", shader aktif" : "") + ") agar tidak dimatikan Android");
+            xmxSetting = cap;
+        }
+        final int xmx = xmxSetting;
+        // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
+        // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
+        final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;
+        // With SerialGC the young generation is sized from the INITIAL heap (1/3 of -Xms). A tiny -Xms
+        // (256M) means a ~85M young gen, so GC runs several times a second and the old generation keeps
+        // growing through repeated full (stop-the-world, single-threaded) collections - on a slow phone
+        // CPU each of those can freeze the game for 1-3 seconds. So: start at half of -Xmx and pin the
+        // young generation to a fixed size. Pages are only touched when used, so this does not raise RAM use.
+        final int xms = lowRam ? Math.max(Math.min(xmx, 384), xmx / 2) : xmx;
+        userArgs.add("-Xms" + xms + "M");
+        userArgs.add("-Xmx" + xmx + "M");
+        if (lowRam) {
+            boolean userSetGc = false;
+            boolean userSetCodeCache = false;
+            boolean userSetNewSize = false;
+            for (String a : userArgs) {
+                if (a.startsWith("-XX:+Use") && a.endsWith("GC")) userSetGc = true;
+                if (a.startsWith("-XX:ReservedCodeCacheSize")) userSetCodeCache = true;
+                if (a.startsWith("-Xmn") || a.startsWith("-XX:NewSize") || a.startsWith("-XX:MaxNewSize") || a.startsWith("-XX:NewRatio")) userSetNewSize = true;
+            }
+            if (!userSetGc) userArgs.add("-XX:+UseSerialGC");
+            if (!userSetCodeCache) userArgs.add("-XX:ReservedCodeCacheSize=64m");
+            if (!userSetNewSize && !userSetGc) {
+                // Young gen = 1/3 of the heap, clamped to 96..256 MB (never more than half of -Xms)
+                final int young = Math.min(Math.min(256, xms / 2), Math.max(96, xmx / 3));
+                userArgs.add("-Xmn" + young + "M");
+            }
+            userArgs.add("-XX:-UsePerfData");
+            Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB): Xms=" + xms + "M");
+        }
         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
 
         // Force LWJGL to use the Freetype library intended for it, instead of using the one
@@ -396,6 +490,29 @@ public final class JREUtils {
 
         // Some phones are not using the right number of cores, fix that
         userArgs.add("-XX:ActiveProcessorCount=" + java.lang.Runtime.getRuntime().availableProcessors());
+
+        // Faster start (user's own Java arguments are added afterwards and can still override these).
+        // 1) Skip bytecode verification of the huge number of mod/library classes loaded at start.
+        userArgs.add("-XX:-BytecodeVerificationRemote");
+        userArgs.add("-XX:-BytecodeVerificationLocal");
+        // Never abort the JVM start because of a flag this JRE version does not know.
+        userArgs.add("-XX:+IgnoreUnrecognizedVMOptions");
+        // 2) Dynamic AppCDS archive (JDK 19+): the 2nd launch loads classes from a ready archive.
+        //    The JVM falls back silently when the archive is missing or no longer matches.
+        if (runtimeHome != null && (runtimeHome.contains("jre-21") || runtimeHome.contains("jre-25")
+                || runtimeHome.contains("jre21") || runtimeHome.contains("jre25"))) {
+            try {
+                File cdsDir = new File(PathManager.DIR_CACHE, "cds");
+                if (cdsDir.isDirectory() || cdsDir.mkdirs()) {
+                    userArgs.add("-XX:+AutoCreateSharedArchive");
+                    userArgs.add("-XX:SharedArchiveFile=" + new File(cdsDir, "game-" + Math.abs(gameVersion.getVersionName().hashCode()) + ".jsa").getAbsolutePath());
+                    userArgs.add("-Xlog:cds=off");
+                    userArgs.add("-Xlog:cds+dynamic=off");
+                }
+            } catch (Throwable t) {
+                Logging.e("JREUtils", "CDS setup failed: " + t);
+            }
+        }
 
         userArgs.addAll(JVMArgs);
         activity.runOnUiThread(() -> Toast.makeText(activity, activity.getString(R.string.autoram_info_msg, AllSettings.getRamAllocation().getValue().getValue()), Toast.LENGTH_SHORT).show());

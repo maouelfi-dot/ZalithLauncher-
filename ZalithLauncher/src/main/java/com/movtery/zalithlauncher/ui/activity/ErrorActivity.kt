@@ -80,7 +80,13 @@ class ErrorActivity : BaseActivity() {
         binding.apply {
             this.errorTitle.setText(R.string.generic_wrong_tip)
             this.errorText.apply {
-                text = getString(errorText, code)
+                val hint = runCatching {
+                    com.movtery.zalithlauncher.feature.log.CrashAnalyzer.analyze(
+                        com.movtery.zalithlauncher.feature.version.VersionsManager.getCurrentVersion()?.getGameDir()
+                    )
+                }.getOrNull()
+                text = if (hint != null) getString(errorText, code) + "\n\nKemungkinan penyebab:\n" + hint
+                else getString(errorText, code)
                 textSize = 14f
             }
             this.errorTip.visibility = View.VISIBLE

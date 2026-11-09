@@ -26,6 +26,14 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
 
     /** Set (or clear with null) the video file. */
     fun setVideo(file: File?) {
+<<<<<<< ours
+=======
+        // Same file already set/playing: do nothing (restarting the player makes the picture stutter).
+        if (file != null && file == this.file && (player != null || textureView.visibility == View.VISIBLE)) {
+            if (player == null && !paused && textureView.isAvailable) start()
+            return
+        }
+>>>>>>> theirs
         this.file = file
         release()
         if (file == null) {
@@ -55,6 +63,7 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
      * Jeda video sebentar saat pengguna menyentuh UI, supaya animasi/transisi tombol tidak
      * berebut CPU/GPU dengan decoder video (penyebab UI kejang di HP RAM kecil).
      */
+<<<<<<< ours
     fun holdForUi(ms: Long = 300L) {
         val p = player ?: return
         runCatching {
@@ -62,6 +71,12 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
             uiHandler.removeCallbacks(resumeRunnable)
             uiHandler.postDelayed(resumeRunnable, ms)
         }
+=======
+    @Suppress("UNUSED_PARAMETER")
+    fun holdForUi(ms: Long = 300L) {
+        // Intentionally a no-op: pausing the video on every touch is what made it freeze/stutter.
+        // The video is hardware decoded on its own thread and does not compete with the UI.
+>>>>>>> theirs
     }
 
     fun onDestroy() {

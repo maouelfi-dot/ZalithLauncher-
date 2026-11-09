@@ -55,7 +55,12 @@ object LwjglComponent {
     /** True when the game wants LWJGL >= 3.4.1 *and* the 3.4.1 component is really unpacked on this device. */
     @JvmStatic
     fun shouldUse341(info: JMinecraftVersionList.Version?): Boolean {
+<<<<<<< ours
         if (detectLwjglVersion(info) < VERSION_341) return false
+=======
+        val forced = runCatching { com.movtery.zalithlauncher.setting.AllSettings.forceLwjgl341.getValue() }.getOrDefault(false)
+        if (!forced && detectLwjglVersion(info) < VERSION_341) return false
+>>>>>>> theirs
         val dir = componentDir(DIR_341)
         val hasJars = dir.listFiles { f -> f.name.endsWith(".jar") }?.isNotEmpty() == true
         return hasJars && File(nativesDir(), "liblwjgl.so").exists()

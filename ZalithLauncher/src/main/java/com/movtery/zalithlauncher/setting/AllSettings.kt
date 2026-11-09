@@ -30,6 +30,7 @@ class AllSettings {
 
         @JvmStatic
         val sustainedPerformance = BooleanSettingUnit("sustainedPerformance", false)
+        val forceLwjgl341 = BooleanSettingUnit("forceLwjgl341", false)
 
         @JvmStatic
         val alternateSurface = BooleanSettingUnit("alternate_surface", false)
@@ -171,7 +172,7 @@ class AllSettings {
         val animation = BooleanSettingUnit("animation", true)
 
         @JvmStatic
-        val animationSpeed = IntSettingUnit("animationSpeed", 600)
+        val animationSpeed = IntSettingUnit("animationSpeed", 250)
 
         @JvmStatic
         val pageOpacity = IntSettingUnit("pageOpacity", 100)

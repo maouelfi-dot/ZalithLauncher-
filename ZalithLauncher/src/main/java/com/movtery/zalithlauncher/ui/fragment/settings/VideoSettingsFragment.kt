@@ -189,6 +189,13 @@ class VideoSettingsFragment : AbstractSettingsFragment(R.layout.settings_fragmen
 
         SwitchSettingsWrapper(
             context,
+            AllSettings.forceLwjgl341,
+            binding.forceLwjgl341Layout,
+            binding.forceLwjgl341
+        )
+
+        SwitchSettingsWrapper(
+            context,
             AllSettings.alternateSurface,
             binding.alternateSurfaceLayout,
             binding.alternateSurface

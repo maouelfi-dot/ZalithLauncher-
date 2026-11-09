@@ -597,9 +597,6 @@ public class LauncherActivity extends BaseActivity {
 
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
-        if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN && mVideoBackground != null) {
-            mVideoBackground.holdForUi(300L);
-        }
         return super.dispatchTouchEvent(ev);
     }
 

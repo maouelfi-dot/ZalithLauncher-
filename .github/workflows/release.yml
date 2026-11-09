@@ -1,7 +1,11 @@
 name: Build and Release APK
 
 # Otomatis build semua APK lalu upload ke GitHub Releases.
+<<<<<<< ours
 # Cara pakai: push tag, misalnya  git tag v1.4.1.7 && git push origin v1.4.1.7
+=======
+# Cara pakai: push tag, misalnya  git tag v1.4.1.8 && git push origin v1.4.1.7
+>>>>>>> theirs
 # Atau jalankan manual dari tab Actions (isi nama tag).
 on:
   push:
@@ -10,7 +14,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
+<<<<<<< ours
         description: 'Nama tag rilis (contoh: v1.4.1.7)'
+=======
+        description: 'Nama tag rilis (contoh: v1.4.1.8)'
+>>>>>>> theirs
         required: true
 
 permissions:

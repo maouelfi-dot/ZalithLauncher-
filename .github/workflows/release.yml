@@ -62,6 +62,9 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout (untuk RELEASE_NOTES.md)
+        uses: actions/checkout@v4
+
       - name: Download all APKs
         uses: actions/download-artifact@v4
         with:
@@ -74,5 +77,6 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
           files: apks/*.apk

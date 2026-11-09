@@ -1,5 +1,6 @@
 package com.movtery.zalithlauncher.launch
 
+import com.movtery.zalithlauncher.feature.log.Logging
 import com.movtery.zalithlauncher.utils.path.PathManager
 import net.kdt.pojavlaunch.Architecture
 import net.kdt.pojavlaunch.JMinecraftVersionList
@@ -58,8 +59,18 @@ object LwjglComponent {
         val forced = runCatching { com.movtery.zalithlauncher.setting.AllSettings.forceLwjgl341.getValue() }.getOrDefault(false)
         if (!forced && detectLwjglVersion(info) < VERSION_341) return false
         val dir = componentDir(DIR_341)
-        val hasJars = dir.listFiles { f -> f.name.endsWith(".jar") }?.isNotEmpty() == true
-        return hasJars && File(nativesDir(), "liblwjgl.so").exists()
+        val requiredJars = listOf("lwjgl.jar", "lwjgl-3.4.1-merged-modules.jar", "lwjgl-openal.jar", "lwjgl-stb.jar", "lwjgl-tinyfd.jar")
+        val requiredNatives = listOf("liblwjgl.so", "liblwjgl_opengl.so", "liblwjgl_stb.so", "liblwjgl_tinyfd.so")
+        val missing = requiredJars.filter { !File(dir, it).isFile } +
+            requiredNatives.filter { !File(nativesDir(), it).isFile }
+        if (missing.isNotEmpty()) {
+            // Komponen 3.4.1 belum lengkap: pakai LWJGL 3.3.x daripada crash di tengah peluncuran
+            Logging.w("LwjglComponent", "LWJGL 3.4.1 tidak lengkap (${missing.joinToString()}), memakai LWJGL 3.3.x")
+            return false
+        }
+        Logging.i("LwjglComponent", "LWJGL 3.4.1 aktif (${if (forced) "dipaksa lewat pengaturan" else "diminta manifest game"}), " +
+            "manifest meminta ${detectLwjglVersion(info)}, natives=${nativesDir().absolutePath}")
+        return true
     }
 
     /** `-cp` part for the chosen component. Core `lwjgl.jar` first, then merged modules, then the rest. */

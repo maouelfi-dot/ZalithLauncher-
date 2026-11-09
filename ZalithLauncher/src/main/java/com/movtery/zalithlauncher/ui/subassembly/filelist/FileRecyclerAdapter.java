@@ -16,6 +16,7 @@ import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.movtery.zalithlauncher.R;
 import com.movtery.zalithlauncher.databinding.ItemFileListViewBinding;
 import com.movtery.zalithlauncher.feature.mod.ModIconLoader;
+import com.movtery.zalithlauncher.feature.mod.ModUtils;
 import com.movtery.zalithlauncher.utils.file.FileTools;
 import com.movtery.zalithlauncher.utils.image.ImageUtils;
 import com.movtery.zalithlauncher.utils.stringutils.StringUtils;
@@ -169,7 +170,47 @@ public class FileRecyclerAdapter extends RecyclerView.Adapter<FileRecyclerAdapte
             mFileItemBean = fileItemBean;
             File file = fileItemBean.file;
 
-            binding.name.setText(fileItemBean.name);
+            final boolean isMod = ModIconLoader.isModFile(file);
+            final boolean isDisabledMod = isMod
+                    && file.getName().toLowerCase(Locale.ROOT).endsWith(ModUtils.DISABLE_JAR_FILE_SUFFIX);
+            binding.image.setAlpha(isDisabledMod ? 0.4f : 1f);
+            if (isDisabledMod) {
+                // Mod nonaktif: nama abu-abu dicoret + lencana "NONAKTIF" (tanpa akhiran .disabled)
+                String shown = fileItemBean.name == null ? file.getName() : fileItemBean.name;
+                if (shown.toLowerCase(Locale.ROOT).endsWith(".disabled")) {
+                    shown = shown.substring(0, shown.length() - ".disabled".length());
+                }
+                final String badge = "  NONAKTIF";
+                android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(shown + badge);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFF8A8A8A), 0, shown.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new android.text.style.StrikethroughSpan(), 0, shown.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(0xFFE57373), shown.length(), sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), shown.length(), sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new android.text.style.RelativeSizeSpan(0.75f), shown.length(), sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                binding.name.setText(sb);
+            } else {
+                binding.name.setText(fileItemBean.name);
+            }
+            // Ikon mod: sudut membulat; daftar file lain tetap seperti semula
+            if (isMod) {
+                final float radius = 6f * binding.image.getResources().getDisplayMetrics().density;
+                binding.image.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, android.graphics.Outline outline) {
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+                    }
+                });
+                binding.image.setClipToOutline(true);
+            } else {
+                binding.image.setClipToOutline(false);
+                binding.image.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+            }
+            binding.image.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
 
             int infoLayoutVisible = View.GONE;
             if (fileItemBean.date != null) {
@@ -210,11 +251,13 @@ public class FileRecyclerAdapter extends RecyclerView.Adapter<FileRecyclerAdapte
                 binding.image.setImageDrawable(fileItemBean.image);
                 android.graphics.Bitmap cached = ModIconLoader.getCached(file);
                 if (cached != null) {
+                    binding.image.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                     binding.image.setImageBitmap(cached);
                 } else if (!ModIconLoader.isKnownMissing(file)) {
                     final File target = file;
                     ModIconLoader.load(target, bitmap -> {
                         if (bitmap != null && mFileItemBean != null && target.equals(mFileItemBean.file)) {
+                            binding.image.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                             binding.image.setImageBitmap(bitmap);
                         }
                     });

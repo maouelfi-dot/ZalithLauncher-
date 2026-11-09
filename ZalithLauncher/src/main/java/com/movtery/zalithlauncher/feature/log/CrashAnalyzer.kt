@@ -44,6 +44,13 @@ object CrashAnalyzer {
             text.contains("native memory", ignoreCase = true) && text.contains("insufficient", ignoreCase = true)) {
             hints += "RAM native habis (biasanya karena shader, tekstur besar, atau RAM alokasi terlalu besar). Turunkan alokasi RAM Java atau matikan shader."
         }
+        if (Regex("""(NoSuchMethodError|NoSuchFieldError|NoClassDefFoundError|AbstractMethodError|IncompatibleClassChangeError)[^\n]*org[./]lwjgl""")
+                .containsMatchIn(text)) {
+            hints += "Game atau mod memakai fungsi LWJGL 3.3.x yang tidak cocok dengan LWJGL 3.4.1. Matikan \"Paksa LWJGL 3.4.1\" di pengaturan Video untuk game/mod versi lama (misalnya 1.21.1)."
+        }
+        if (Regex("""(Failed to locate library|Unable to load library)[^\n]*lwjgl""", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
+            hints += "Library native LWJGL tidak ditemukan. Komponen LWJGL 3.4.1 mungkin belum terpasang lengkap; buka ulang launcher agar komponen diekstrak ulang."
+        }
         Regex("""UnsatisfiedLinkError[^\n]*""").find(text)?.let {
             hints += "Library native tidak cocok dengan HP ini (${it.value.take(160)}). Mod tersebut mungkin tidak mendukung Android/arsitektur HP."
         }

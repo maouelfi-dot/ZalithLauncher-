@@ -417,6 +417,7 @@ public final class JREUtils {
             final List<String> JVMArgs,
             final String userArgsString
     ) {
+        com.movtery.zalithlauncher.feature.jna.JnaNatives.prepare(activity, gameVersion);
         List<String> userArgs = getJavaArgs(runtimeHome, userArgsString);
         //Remove arguments that can interfere with the good working of the launcher
         purgeArg(userArgs,"-Xms");
@@ -480,6 +481,10 @@ public final class JREUtils {
                 userArgs.add("-Xmn" + young + "M");
             }
             userArgs.add("-XX:-UsePerfData");
+            // Batasi thread kompilasi JIT (1 C1 + 1 C2) agar tidak berebut CPU dengan thread render di HP lemah
+            boolean userSetCi = false;
+            for (String a : userArgs) if (a.startsWith("-XX:CICompilerCount")) userSetCi = true;
+            if (!userSetCi) userArgs.add("-XX:CICompilerCount=2");
             Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB): Xms=" + xms + "M");
         }
         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
@@ -556,7 +561,9 @@ public final class JREUtils {
         ArrayList<String> overridableArguments = new ArrayList<>(Arrays.asList(
                 "-Djava.home=" + runtimeHome,
                 "-Djava.io.tmpdir=" + PathManager.DIR_CACHE.getAbsolutePath(),
-                "-Djna.boot.library.path=" + DIR_NATIVE_LIB,
+                "-Djna.boot.library.path=" + (com.movtery.zalithlauncher.feature.jna.JnaNatives.currentDir != null
+                        ? com.movtery.zalithlauncher.feature.jna.JnaNatives.currentDir + ":" + DIR_NATIVE_LIB
+                        : DIR_NATIVE_LIB),
                 "-Duser.home=" + ProfilePathManager.INSTANCE.getCurrentPath(),
                 "-Duser.language=" + System.getProperty("user.language"),
                 "-Dos.name=Linux",

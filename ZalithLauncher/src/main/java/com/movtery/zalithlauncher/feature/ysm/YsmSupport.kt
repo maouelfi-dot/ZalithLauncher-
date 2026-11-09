@@ -32,7 +32,11 @@ object YsmSupport {
 
     private fun extractIfYsm(jar: File): String? {
         ZipFile(jar).use { zip ->
-            val entry = zip.getEntry(ENTRY) ?: return null
+            // Cari lib native Android milik YSM di semua versi YSM (nama bisa berbeda antar versi)
+            val entry = zip.getEntry(ENTRY) ?: zip.entries().asSequence().firstOrNull {
+                !it.isDirectory && it.name.startsWith("META-INF/native/") && it.name.endsWith(".so") &&
+                    it.name.contains("ysm", ignoreCase = true) && it.name.contains("android", ignoreCase = true)
+            } ?: return null
             val base = PathManager.DIR_RUNTIME_MOD ?: return null
             val dir = File(base, "ysm").apply { mkdirs() }
             // nama file memuat ukuran + waktu ubah jar agar ikut berganti saat YSM di-update

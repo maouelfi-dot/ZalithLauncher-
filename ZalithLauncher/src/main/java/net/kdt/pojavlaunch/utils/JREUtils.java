@@ -489,10 +489,13 @@ public final class JREUtils {
         userArgs.add("-Dorg.lwjgl.freetype.libname="+ DIR_NATIVE_LIB +"/libfreetype.so");
 
         // Some phones are not using the right number of cores, fix that
-        userArgs.add("-XX:ActiveProcessorCount=" + java.lang.Runtime.getRuntime().availableProcessors());
+        userArgs.add("-XX:ActiveProcessorCount=" + (lowRam
+                ? Math.min(4, java.lang.Runtime.getRuntime().availableProcessors())
+                : java.lang.Runtime.getRuntime().availableProcessors()));
 
         // Faster start (user's own Java arguments are added afterwards and can still override these).
         // 1) Skip bytecode verification of the huge number of mod/library classes loaded at start.
+        userArgs.add("-XX:+UnlockDiagnosticVMOptions");
         userArgs.add("-XX:-BytecodeVerificationRemote");
         userArgs.add("-XX:-BytecodeVerificationLocal");
         // Never abort the JVM start because of a flag this JRE version does not know.
@@ -500,7 +503,8 @@ public final class JREUtils {
         // 2) Dynamic AppCDS archive (JDK 19+): the 2nd launch loads classes from a ready archive.
         //    The JVM falls back silently when the archive is missing or no longer matches.
         if (runtimeHome != null && (runtimeHome.contains("jre-21") || runtimeHome.contains("jre-25")
-                || runtimeHome.contains("jre21") || runtimeHome.contains("jre25"))) {
+                || runtimeHome.contains("jre21") || runtimeHome.contains("jre25")
+                || runtimeHome.matches(".*[-_]2[1-9]/?$"))) {
             try {
                 File cdsDir = new File(PathManager.DIR_CACHE, "cds");
                 if (cdsDir.isDirectory() || cdsDir.mkdirs()) {

@@ -70,8 +70,8 @@ public class ControlData {
     public boolean isSwipeable;
     public boolean displayInGame;
     public boolean displayInMenu;
-    private float width;         //Dp instead of Px now
-    private float height;        //Dp instead of Px now
+    float width;         //Dp instead of Px now
+    float height;        //Dp instead of Px now
 
     public ControlData() {
         this(getString(R.string.controls_add_control_button));

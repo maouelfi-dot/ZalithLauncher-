@@ -10,8 +10,8 @@ import com.movtery.zalithlauncher.feature.log.Logging
 import java.io.File
 
 /**
- * Plays a muted, looping video behind the launcher UI (center-crop).
- * Kept deliberately light for low-RAM devices: hardware-decoded MediaPlayer, no audio,
+ * Plays a looping video (with its own audio) behind the launcher UI (center-crop).
+ * Kept deliberately light for low-RAM devices: hardware-decoded MediaPlayer, audio on,
  * released as soon as the launcher is not visible.
  */
 class VideoBackgroundController(private val textureView: TextureView) : TextureView.SurfaceTextureListener {
@@ -46,7 +46,26 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
         if (file != null && textureView.isAvailable) start()
     }
 
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val resumeRunnable = Runnable {
+        runCatching { if (!paused) player?.let { if (!it.isPlaying) it.start() } }
+    }
+
+    /**
+     * Jeda video sebentar saat pengguna menyentuh UI, supaya animasi/transisi tombol tidak
+     * berebut CPU/GPU dengan decoder video (penyebab UI kejang di HP RAM kecil).
+     */
+    fun holdForUi(ms: Long = 300L) {
+        val p = player ?: return
+        runCatching {
+            if (p.isPlaying) p.pause()
+            uiHandler.removeCallbacks(resumeRunnable)
+            uiHandler.postDelayed(resumeRunnable, ms)
+        }
+    }
+
     fun onDestroy() {
+        uiHandler.removeCallbacks(resumeRunnable)
         file = null
         release()
     }
@@ -61,7 +80,7 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
             player = MediaPlayer().apply {
                 setDataSource(videoFile.absolutePath)
                 setSurface(s)
-                setVolume(0f, 0f)
+                setVolume(1f, 1f)
                 isLooping = true
                 setOnVideoSizeChangedListener { _, w, h -> applyCenterCrop(w, h) }
                 setOnPreparedListener { it.start() }
@@ -89,6 +108,7 @@ class VideoBackgroundController(private val textureView: TextureView) : TextureV
     }
 
     private fun release() {
+        uiHandler.removeCallbacks(resumeRunnable)
         runCatching { player?.release() }
         player = null
         runCatching { surface?.release() }

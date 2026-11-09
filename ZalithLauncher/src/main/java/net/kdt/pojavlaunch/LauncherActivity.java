@@ -595,6 +595,14 @@ public class LauncherActivity extends BaseActivity {
 
     private com.movtery.zalithlauncher.feature.background.VideoBackgroundController mVideoBackground;
 
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN && mVideoBackground != null) {
+            mVideoBackground.holdForUi(300L);
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
     private void refreshBackground() {
         if (mVideoBackground == null) {
             mVideoBackground = new com.movtery.zalithlauncher.feature.background.VideoBackgroundController(binding.videoBackgroundView);

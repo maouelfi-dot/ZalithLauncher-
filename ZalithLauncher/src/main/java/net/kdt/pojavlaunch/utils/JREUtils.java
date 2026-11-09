@@ -331,6 +331,14 @@ public final class JREUtils {
             }
 
             envMap.put("ZALITH_VERSION_CODE", String.valueOf(ZHTools.getVersionCode()));
+
+            try {
+                String ysmLib = com.movtery.zalithlauncher.feature.ysm.YsmSupport.prepareCoreLib(
+                        new File(gameVersion.getGameDir(), "mods"));
+                if (ysmLib != null) envMap.put("YSM_CORE_LIB", ysmLib);
+            } catch (Throwable t) {
+                Logging.e("JREUtils", "YSM prepare failed: " + t);
+            }
         }
 
         for (Map.Entry<String, String> env : envMap.entrySet()) {
@@ -360,6 +368,48 @@ public final class JREUtils {
         }
     }
 
+    /** Cek apakah shader pack sedang dipakai (Iris/Oculus: config/iris.properties, OptiFine: optionsshaders.txt). */
+    private static boolean isShaderPackActive(Version gameVersion) {
+        if (gameVersion == null) return false;
+        try {
+            File gameDir = gameVersion.getGameDir();
+            boolean found = false;
+            boolean enabled = true;
+            File iris = new File(gameDir, "config/iris.properties");
+            if (iris.isFile()) {
+                try (BufferedReader r = new BufferedReader(new FileReader(iris))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        line = line.trim();
+                        if (line.startsWith("shaderPack=")) {
+                            String v = line.substring("shaderPack=".length()).trim();
+                            if (!v.isEmpty() && !v.equals("(internal)")) found = true;
+                        } else if (line.equals("enableShaders=false")) {
+                            enabled = false;
+                        }
+                    }
+                }
+                if (found && enabled) return true;
+            }
+            File optifine = new File(gameDir, "optionsshaders.txt");
+            if (optifine.isFile()) {
+                try (BufferedReader r = new BufferedReader(new FileReader(optifine))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        line = line.trim();
+                        if (line.startsWith("shaderPack=")) {
+                            String v = line.substring("shaderPack=".length()).trim();
+                            return !v.isEmpty() && !v.equalsIgnoreCase("OFF") && !v.equals("(internal)");
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Logging.e("JREUtils", "Shader check failed: " + t);
+        }
+        return false;
+    }
+
     private static void launchJavaVM(
             final AppCompatActivity activity,
             String runtimeHome,
@@ -386,7 +436,22 @@ public final class JREUtils {
         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
 
         //Add automatically generated args
-        final int xmx = AllSettings.getRamAllocation().getValue().getValue();
+        int xmxSetting = AllSettings.getRamAllocation().getValue().getValue();
+        // Shader aktif: tekstur/framebuffer shader memakai RAM native (berbagi dengan GPU di HP).
+        // Heap yang terlalu besar membuat Android mematikan game atau memaksa swap -> FPS jatuh / kejang.
+        final long deviceMb = Tools.getTotalDeviceMemory(activity);
+        // Sisakan RAM untuk Android + RAM native (GL, audio, lib mod). Heap yang menghabiskan seluruh RAM
+        // HP membuat game dimatikan Android tanpa pesan error (crash "tidak jelas") terutama di HP RAM kecil.
+        // Shader aktif butuh sisa lebih besar karena tekstur/framebuffer ikut memakai RAM.
+        final boolean shaderOn = isShaderPackActive(gameVersion);
+        final int nativeReserve = shaderOn ? (deviceMb < 3072 ? 900 : 1200) : (deviceMb < 3072 ? 700 : 900);
+        final int cap = (int) Math.max(640, deviceMb - nativeReserve);
+        if (xmxSetting > cap) {
+            Logger.appendToLog("Batas heap diturunkan " + xmxSetting + "M -> " + cap + "M (RAM HP " + deviceMb + "M"
+                    + (shaderOn ? ", shader aktif" : "") + ") agar tidak dimatikan Android");
+            xmxSetting = cap;
+        }
+        final int xmx = xmxSetting;
         // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
         // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
         final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;

@@ -1,0 +1,829 @@
+diff --git a/ZalithLauncher/gradle.properties b/ZalithLauncher/gradle.properties
+index 873f312..5010b7c 100644
+--- a/ZalithLauncher/gradle.properties
++++ b/ZalithLauncher/gradle.properties
+@@ -1,5 +1,5 @@
+ launcher_name=ZalithLauncher
+ launcher_app_name=Zalith Launcher
+ 
+-launcher_version_code=141400
+-launcher_version_name=1.4.1.4
+\ No newline at end of file
++launcher_version_code=141500
++launcher_version_name=1.4.1.5
+\ No newline at end of file
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
+index fc80cb9..6d39fec 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/BackgroundManager.kt
+@@ -74,6 +74,23 @@ object BackgroundManager {
+             .into(CallbackDrawableImageViewTarget(backgroundView, callback))
+     }
+ 
++    private val VIDEO_EXTENSIONS = setOf("mp4", "webm", "mkv", "3gp", "mov")
++
++    @JvmStatic
++    fun isVideo(file: File?): Boolean {
++        if (file == null || file.isDirectory) return false
++        return file.extension.lowercase() in VIDEO_EXTENSIONS
++    }
++
++    /** The selected video for this background type, or null if none (or the selection is an image). */
++    @JvmStatic
++    fun getBackgroundVideo(backgroundType: BackgroundType): File? {
++        if (!hasBackgroundImage(backgroundType)) return null
++        val name = properties[backgroundType.name] as String
++        val file = File(PathManager.DIR_BACKGROUND, name)
++        return if (file.exists() && isVideo(file)) file else null
++    }
++
+     @JvmStatic
+     fun clearBackgroundImage(
+         backgroundView: ImageView
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt
+new file mode 100644
+index 0000000..72dd248
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/background/VideoBackgroundController.kt
+@@ -0,0 +1,112 @@
++package com.movtery.zalithlauncher.feature.background
++
++import android.graphics.Matrix
++import android.graphics.SurfaceTexture
++import android.media.MediaPlayer
++import android.view.Surface
++import android.view.TextureView
++import android.view.View
++import com.movtery.zalithlauncher.feature.log.Logging
++import java.io.File
++
++/**
++ * Plays a muted, looping video behind the launcher UI (center-crop).
++ * Kept deliberately light for low-RAM devices: hardware-decoded MediaPlayer, no audio,
++ * released as soon as the launcher is not visible.
++ */
++class VideoBackgroundController(private val textureView: TextureView) : TextureView.SurfaceTextureListener {
++    private var player: MediaPlayer? = null
++    private var surface: Surface? = null
++    private var file: File? = null
++    private var paused = false
++
++    init {
++        textureView.surfaceTextureListener = this
++    }
++
++    /** Set (or clear with null) the video file. */
++    fun setVideo(file: File?) {
++        this.file = file
++        release()
++        if (file == null) {
++            textureView.visibility = View.GONE
++            return
++        }
++        textureView.visibility = View.VISIBLE
++        if (textureView.isAvailable && !paused) start()
++    }
++
++    fun onPause() {
++        paused = true
++        release()
++    }
++
++    fun onResume() {
++        paused = false
++        if (file != null && textureView.isAvailable) start()
++    }
++
++    fun onDestroy() {
++        file = null
++        release()
++    }
++
++    private fun start() {
++        val videoFile = file ?: return
++        if (!videoFile.exists() || player != null) return
++        val st = textureView.surfaceTexture ?: return
++        runCatching {
++            val s = Surface(st)
++            surface = s
++            player = MediaPlayer().apply {
++                setDataSource(videoFile.absolutePath)
++                setSurface(s)
++                setVolume(0f, 0f)
++                isLooping = true
++                setOnVideoSizeChangedListener { _, w, h -> applyCenterCrop(w, h) }
++                setOnPreparedListener { it.start() }
++                setOnErrorListener { _, what, extra ->
++                    Logging.e("VideoBackground", "MediaPlayer error $what/$extra")
++                    release()
++                    true
++                }
++                prepareAsync()
++            }
++        }.onFailure {
++            Logging.e("VideoBackground", "Failed to start: ${it.message}")
++            release()
++        }
++    }
++
++    private fun applyCenterCrop(videoW: Int, videoH: Int) {
++        val vw = textureView.width.toFloat()
++        val vh = textureView.height.toFloat()
++        if (videoW <= 0 || videoH <= 0 || vw <= 0f || vh <= 0f) return
++        val scale = maxOf(vw / videoW, vh / videoH)
++        val sx = videoW * scale / vw
++        val sy = videoH * scale / vh
++        textureView.setTransform(Matrix().apply { setScale(sx, sy, vw / 2f, vh / 2f) })
++    }
++
++    private fun release() {
++        runCatching { player?.release() }
++        player = null
++        runCatching { surface?.release() }
++        surface = null
++    }
++
++    override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
++        if (!paused) start()
++    }
++
++    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {
++        player?.let { applyCenterCrop(it.videoWidth, it.videoHeight) }
++    }
++
++    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
++        release()
++        return true
++    }
++
++    override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+index 74ff062..44b7f58 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+@@ -141,6 +141,10 @@ class AllSettings {
+         @JvmStatic
+         val gameMenuAlpha = IntSettingUnit("gameMenuAlpha", 100)
+ 
++        /** Hide the floating gear button in game (menu can still be opened by swiping from the right edge) */
++        @JvmStatic
++        val gameMenuHideButton = BooleanSettingUnit("gameMenuHideButton", false)
++
+         // Launcher
+         @JvmStatic
+         val checkLibraries = BooleanSettingUnit("checkLibraries", true)
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
+index 975d1db..8998f69 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/CustomBackgroundFragment.kt
+@@ -93,7 +93,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+                     override fun onFileSelected(file: File?, path: String?) {
+                         val fileName = file!!.name
+ 
+-                        val image = isImage(file)
++                        val image = isImage(file) || BackgroundManager.isVideo(file)
+                         val filesButton = FilesButton()
+                         filesButton.setButtonVisibility(false, false, true, true, true, image)
+                         //默认虚拟鼠标不支持分享、重命名、删除操作
+@@ -155,7 +155,7 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+                 }
+ 
+                 returnButton.setOnClickListener { ZHTools.onBackPressed(requireActivity()) }
+-                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*")) }
++                addFileButton.setOnClickListener { openDocumentLauncher?.launch(arrayOf("image/*", "video/*")) }
+                 refreshButton.setOnClickListener {
+                     fileRecyclerView.listFileAt(backgroundPath())
+                 }
+@@ -223,6 +223,15 @@ class CustomBackgroundFragment : FragmentWithAnim(R.layout.fragment_custom_backg
+ 
+     private fun refreshBackgroundPreview() {
+         binding.preview.let {
++            BackgroundManager.getBackgroundVideo(backgroundType)?.apply {
++                // Preview a video selection with its first frame
++                Glide.with(requireActivity())
++                    .load(this)
++                    .fitCenter()
++                    .into(DrawableImageViewTarget(it))
++                return
++            }
++
+             BackgroundManager.getBackgroundImage(backgroundType)?.apply {
+                 Glide.with(requireActivity())
+                     .load(this)
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
+index 20bb8c4..5f416a5 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/GameSettingsFragment.kt
+@@ -170,6 +170,13 @@ class GameSettingsFragment : AbstractSettingsFragment(R.layout.settings_fragment
+             openGameMenuFPS()
+         }
+ 
++        SwitchSettingsWrapper(
++            context,
++            AllSettings.gameMenuHideButton,
++            binding.gameMenuHideButtonLayout,
++            binding.gameMenuHideButton
++        )
++
+         EditTextSettingsWrapper(
+             AllSettings.gameMenuMemoryText,
+             binding.gameMenuMemoryTextLayout,
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
+index e218b42..33c719d 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/subassembly/view/GameMenuViewWrapper.kt
+@@ -32,6 +32,7 @@ class GameMenuViewWrapper(
+     private val memoryText: String = AllSettings.gameMenuMemoryText.getValue()
+     private var showMemory: Boolean = false
+     private var showFPS: Boolean = false
++    private var hideButton: Boolean = false
+     private var visible: Boolean = false
+ 
+     private var scopeFx: IFxScopeControl? = null
+@@ -48,6 +49,7 @@ class GameMenuViewWrapper(
+             addViewLifecycle(object : IFxViewLifecycle {
+                 override fun initView(holder: FxViewHolder) {
+                     holder.view.alpha = AllSettings.gameMenuAlpha.getValue().toFloat() / 100f
++                    applyButtonVisibility(holder.view)
+ 
+                     updateInfoText(holder.view)
+                 }
+@@ -85,7 +87,7 @@ class GameMenuViewWrapper(
+      * 根据三个条件判断是否显示悬浮窗（是否想要显示、是否展示内存信息、是否展示FPS）
+      */
+     private fun thinkForVisibility() {
+-        val v1 = visible || showMemory || showFPS
++        val v1 = (visible && !hideButton) || showMemory || showFPS
+         if (v1) {
+             if (scopeFx != null) {
+                 updateInfoText()
+@@ -106,6 +108,14 @@ class GameMenuViewWrapper(
+     private fun refreshState() {
+         showMemory = AllSettings.gameMenuShowMemory.getValue()
+         showFPS = AllSettings.gameMenuShowFPS.getValue()
++        hideButton = AllSettings.gameMenuHideButton.getValue()
++        scopeFx?.getView()?.let { applyButtonVisibility(it) }
++    }
++
++    /** Show or hide only the gear icon (FPS / memory text stays visible if enabled) */
++    private fun applyButtonVisibility(view: View) {
++        view.findViewById<View>(R.id.settings_button)?.visibility =
++            if (hideButton) View.GONE else View.VISIBLE
+     }
+ 
+     private fun updateInfoText() {
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
+index 9a1fb5b..adab73c 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/LauncherActivity.java
+@@ -492,6 +492,14 @@ public class LauncherActivity extends BaseActivity {
+         super.onResume();
+         setPageOpacity(AllSettings.getPageOpacity().getValue());
+         VersionsManager.INSTANCE.refresh("LauncherActivity:onResume", false);
++        if (mVideoBackground != null) mVideoBackground.onResume();
++    }
++
++    @Override
++    protected void onPause() {
++        super.onPause();
++        // Free the video decoder while the game / another screen is in front (saves RAM)
++        if (mVideoBackground != null) mVideoBackground.onPause();
+     }
+ 
+     @Override
+@@ -503,6 +511,7 @@ public class LauncherActivity extends BaseActivity {
+     @Override
+     protected void onDestroy() {
+         super.onDestroy();
++        if (mVideoBackground != null) mVideoBackground.onDestroy();
+         binding.progressLayout.cleanUpObservers();
+         ProgressKeeper.removeTaskCountListener(binding.progressLayout);
+         ProgressKeeper.removeTaskCountListener(mProgressServiceKeeper);
+@@ -584,7 +593,20 @@ public class LauncherActivity extends BaseActivity {
+         }
+     }
+ 
++    private com.movtery.zalithlauncher.feature.background.VideoBackgroundController mVideoBackground;
++
+     private void refreshBackground() {
++        if (mVideoBackground == null) {
++            mVideoBackground = new com.movtery.zalithlauncher.feature.background.VideoBackgroundController(binding.videoBackgroundView);
++        }
++        java.io.File video = BackgroundManager.getBackgroundVideo(BackgroundType.MAIN_MENU);
++        mVideoBackground.setVideo(video);
++        if (video != null) {
++            // Video selected: plain colour behind it, default top bar colours
++            binding.backgroundView.setImageDrawable(ContextCompat.getDrawable(this, R.color.background_app));
++            refreshTopBarColor(false);
++            return;
++        }
+         BackgroundManager.setBackgroundImage(this, BackgroundType.MAIN_MENU, binding.backgroundView, this::refreshTopBarColor);
+     }
+ 
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+index f40ccf6..b55a679 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+@@ -176,7 +176,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+         binding.mainControlLayout.setMenuListener(this);
+ 
+         binding.mainDrawerOptions.setScrimColor(Color.TRANSPARENT);
+-        binding.mainDrawerOptions.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++        updateDrawerLock();
+ 
+         try {
+             File latestLogFile = new File(PathManager.DIR_GAME_HOME, "latestlog.txt");
+@@ -487,6 +487,14 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+         navigationView.requestLayout();
+     }
+ 
++    /** When the gear button is hidden, allow opening the menu by swiping from the right edge. */
++    private void updateDrawerLock() {
++        binding.mainDrawerOptions.setDrawerLockMode(
++                AllSettings.getGameMenuHideButton().getValue()
++                        ? DrawerLayout.LOCK_MODE_UNLOCKED
++                        : DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++    }
++
+     @Override
+     public void exitEditor() {
+         try {
+@@ -556,6 +564,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             //初始化Switch的状态
+             this.binding.openMemoryInfo.setChecked(AllSettings.getGameMenuShowMemory().getValue());
+             this.binding.openFpsInfo.setChecked(AllSettings.getGameMenuShowFPS().getValue());
++            this.binding.hideMenuButton.setChecked(AllSettings.getGameMenuHideButton().getValue());
+             this.binding.disableGestures.setChecked(AllSettings.getDisableGestures().getValue());
+             this.binding.disableDoubleTap.setChecked(AllSettings.getDisableDoubleTap().getValue());
+             this.binding.enableGyro.setChecked(AllSettings.getEnableGyro().getValue());
+@@ -573,6 +582,8 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             this.binding.openMemoryInfoLayout.setOnClickListener(this);
+             this.binding.openFpsInfo.setOnCheckedChangeListener(this);
+             this.binding.openFpsInfoLayout.setOnClickListener(this);
++            this.binding.hideMenuButton.setOnCheckedChangeListener(this);
++            this.binding.hideMenuButtonLayout.setOnClickListener(this);
+ 
+             this.binding.resolutionScaler.setOnSeekBarChangeListener(this);
+             this.binding.resolutionScalerRemove.setOnClickListener(this);
+@@ -680,6 +691,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             else if (v == binding.sendCustomKey) dialogSendCustomKey();
+             else if (v == binding.openMemoryInfoLayout) MenuUtils.toggleSwitchState(binding.openMemoryInfo);
+             else if (v == binding.openFpsInfoLayout) MenuUtils.toggleSwitchState(binding.openFpsInfo);
++            else if (v == binding.hideMenuButtonLayout) MenuUtils.toggleSwitchState(binding.hideMenuButton);
+             else if (v == binding.resolutionScalerRemove) MenuUtils.adjustSeekbar(binding.resolutionScaler, -1);
+             else if (v == binding.resolutionScalerAdd) MenuUtils.adjustSeekbar(binding.resolutionScaler, 1);
+             else if (v == binding.disableGesturesLayout) MenuUtils.toggleSwitchState(binding.disableGestures);
+@@ -757,6 +769,10 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             } else if (v == binding.openFpsInfo) {
+                 AllSettings.getGameMenuShowFPS().put(isChecked).save();
+                 mGameMenuWrapper.refreshSettingsState();
++            } else if (v == binding.hideMenuButton) {
++                AllSettings.getGameMenuHideButton().put(isChecked).save();
++                mGameMenuWrapper.refreshSettingsState();
++                updateDrawerLock();
+             } else if (v == binding.disableGestures) {
+                 refreshLayoutVisible(binding.timeLongPressTriggerLayout, !isChecked);
+                 AllSettings.getDisableGestures().put(isChecked).save();
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
+index ae5ab31..5d3d2bf 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java
+@@ -386,8 +386,24 @@ public final class JREUtils {
+         userArgs.add("-javaagent:" + LibPath.MIO_LIB_PATCHER.getAbsolutePath());
+ 
+         //Add automatically generated args
+-        userArgs.add("-Xms" + AllSettings.getRamAllocation().getValue().getValue() + "M");
+-        userArgs.add("-Xmx" + AllSettings.getRamAllocation().getValue().getValue() + "M");
++        final int xmx = AllSettings.getRamAllocation().getValue().getValue();
++        // Low-RAM profile (devices under ~3GB): don't pre-commit the whole heap, use the lightest GC
++        // and trim JVM overhead. Skipped for any flag the user already set in their own Java arguments.
++        final boolean lowRam = Tools.getTotalDeviceMemory(activity) < 3072;
++        userArgs.add("-Xms" + (lowRam ? Math.min(xmx, 256) : xmx) + "M");
++        userArgs.add("-Xmx" + xmx + "M");
++        if (lowRam) {
++            boolean userSetGc = false;
++            boolean userSetCodeCache = false;
++            for (String a : userArgs) {
++                if (a.startsWith("-XX:+Use") && a.endsWith("GC")) userSetGc = true;
++                if (a.startsWith("-XX:ReservedCodeCacheSize")) userSetCodeCache = true;
++            }
++            if (!userSetGc) userArgs.add("-XX:+UseSerialGC");
++            if (!userSetCodeCache) userArgs.add("-XX:ReservedCodeCacheSize=64m");
++            userArgs.add("-XX:-UsePerfData");
++            Logger.appendToLog("Low-RAM profile enabled (device RAM < 3GB)");
++        }
+         if (Renderers.INSTANCE.isCurrentRendererValid()) userArgs.add("-Dorg.lwjgl.opengl.libname=" + loadGraphicsLibrary());
+ 
+         // Force LWJGL to use the Freetype library intended for it, instead of using the one
+diff --git a/ZalithLauncher/src/main/res/drawable/background_item_glass.xml b/ZalithLauncher/src/main/res/drawable/background_item_glass.xml
+new file mode 100644
+index 0000000..cde1d87
+--- /dev/null
++++ b/ZalithLauncher/src/main/res/drawable/background_item_glass.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Translucent "glass" card: lets the custom image/video background show through -->
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:state_pressed="true">
++        <shape android:shape="rectangle">
++            <corners android:radius="@dimen/_6sdp" />
++            <solid android:color="#59FFFFFF" />
++        </shape>
++    </item>
++    <item>
++        <shape android:shape="rectangle">
++            <corners android:radius="@dimen/_6sdp" />
++            <solid android:color="#26000000" />
++            <stroke android:width="1dp" android:color="#33FFFFFF" />
++        </shape>
++    </item>
++</selector>
+diff --git a/ZalithLauncher/src/main/res/layout/activity_launcher.xml b/ZalithLauncher/src/main/res/layout/activity_launcher.xml
+index d834b16..7c78e00 100644
+--- a/ZalithLauncher/src/main/res/layout/activity_launcher.xml
++++ b/ZalithLauncher/src/main/res/layout/activity_launcher.xml
+@@ -10,6 +10,12 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"/>
+ 
++    <TextureView
++        android:id="@+id/video_background_view"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent"
++        android:visibility="gone"/>
++
+     <androidx.constraintlayout.widget.ConstraintLayout
+         android:id="@+id/top_layout"
+         android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/layout/fragment_launcher.xml b/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
+index de20ca5..a64c637 100644
+--- a/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
++++ b/ZalithLauncher/src/main/res/layout/fragment_launcher.xml
+@@ -28,194 +28,174 @@
+             app:layout_constraintStart_toStartOf="parent"
+             app:layout_constraintTop_toTopOf="parent">
+ 
+-            <LinearLayout
++            <GridLayout
+                 android:layout_width="match_parent"
+                 android:layout_height="wrap_content"
+-                android:orientation="vertical">
++                android:columnCount="2"
++                android:padding="@dimen/_6sdp">
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/about_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/about_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:scaleX="0.93"
+                         android:scaleY="0.93"
+                         android:src="@drawable/ic_about"/>
+ 
+                     <TextView
+                         android:id="@+id/about_text"
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/about_icon"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/about_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/custom_control_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/custom_control_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_menu_custom_controls"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/custom_control_icon"
+                         android:text="@string/custom_control_title"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/custom_control_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/open_main_dir_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/open_main_dir_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_folder"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/open_main_dir_icon"
+                         android:text="@string/main_open_main_dir"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/open_main_dir_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/install_jar_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/install_jar_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_java"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/install_jar_icon"
+                         android:text="@string/main_install_jar_file"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/install_jar_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
+                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                     android:id="@+id/share_logs_button"
+-                    android:layout_width="match_parent"
++                    android:layout_width="0dp"
++                    android:layout_columnWeight="1"
+                     android:layout_height="wrap_content"
+-                    android:layout_marginTop="@dimen/_12sdp"
+-                    android:layout_marginStart="@dimen/_12sdp"
+-                    android:layout_marginEnd="@dimen/_8sdp"
+-                    android:layout_marginBottom="@dimen/_12sdp"
+-                    android:translationZ="4dp"
+-                    android:background="@drawable/background_item"
++                    android:layout_margin="@dimen/_6sdp"
++                    android:background="@drawable/background_item_glass"
+                     android:paddingHorizontal="@dimen/_8sdp"
+-                    android:paddingVertical="@dimen/_12sdp"
++                    android:paddingVertical="@dimen/_14sdp"
+                     app:ripple_for_relative="true">
+ 
+                     <ImageView
++                        android:tint="@android:color/white"
+                         android:id="@+id/share_logs_icon"
+                         android:layout_width="@dimen/_24sdp"
+                         android:layout_height="@dimen/_24sdp"
+-                        android:layout_marginStart="@dimen/_8sdp"
+-                        android:layout_alignParentStart="true"
+-                        android:layout_centerVertical="true"
++                        android:layout_centerHorizontal="true"
+                         android:src="@drawable/ic_share"/>
+ 
+                     <TextView
+-                        android:layout_width="0dp"
++                        android:layout_width="match_parent"
+                         android:layout_height="wrap_content"
+-                        android:layout_marginStart="@dimen/_16sdp"
+-                        android:layout_marginEnd="@dimen/_8sdp"
+-                        android:layout_alignParentEnd="true"
+-                        android:layout_centerVertical="true"
+-                        android:layout_toEndOf="@id/share_logs_icon"
+                         android:text="@string/main_share_logs"
+-                        android:textSize="@dimen/_12sdp"
+-                        android:textColor="@color/primary_text"/>
++                        android:textSize="@dimen/_11sdp"
++                        android:gravity="center"
++                        android:layout_marginTop="@dimen/_6sdp"
++                        android:layout_below="@id/share_logs_icon"
++                        android:textColor="@android:color/white"
++                        android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
+ 
+                 </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+-            </LinearLayout>
++            </GridLayout>
+         </ScrollView>
+ 
+     </androidx.constraintlayout.widget.ConstraintLayout>
+diff --git a/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml b/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
+index a06a0c6..e319832 100644
+--- a/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
++++ b/ZalithLauncher/src/main/res/layout/settings_fragment_game.xml
+@@ -510,6 +510,41 @@
+                     android:layout_centerVertical="true" />
+             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
++            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
++                android:id="@+id/gameMenuHideButton_layout"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:background="?android:attr/selectableItemBackground"
++                android:padding="@dimen/_12sdp">
++
++                <TextView
++                    android:id="@+id/gameMenuHideButton_title"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/gameMenuHideButton"
++                    android:text="@string/setting_game_menu_hide_button_title"
++                    android:textColor="@color/black_or_white" />
++
++                <TextView
++                    android:id="@+id/gameMenuHideButton_summary"
++                    android:layout_width="0dp"
++                    android:layout_height="wrap_content"
++                    android:layout_below="@+id/gameMenuHideButton_title"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/gameMenuHideButton"
++                    android:text="@string/setting_game_menu_hide_button_desc" />
++
++                <Switch
++                    android:id="@+id/gameMenuHideButton"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentEnd="true"
++                    android:layout_centerVertical="true" />
++            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
++
+             <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                 android:id="@+id/gameMenuMemoryText_layout"
+                 android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/layout/view_game_menu.xml b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+index 6190e93..dc5b930 100644
+--- a/ZalithLauncher/src/main/res/layout/view_game_menu.xml
++++ b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+@@ -136,6 +136,34 @@
+                     android:layout_centerVertical="true" />
+             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
++            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
++                android:id="@+id/hide_menu_button_layout"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginTop="@dimen/_8sdp"
++                android:background="@drawable/background_item"
++                android:padding="@dimen/_8sdp"
++                app:ripple_for_relative="true">
++
++                <TextView
++                    android:id="@+id/hide_menu_button_title"
++                    android:layout_width="0dp"
++                    android:layout_height="wrap_content"
++                    android:layout_centerVertical="true"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/hide_menu_button"
++                    android:text="@string/setting_game_menu_hide_button_title"
++                    android:textColor="@color/black_or_white" />
++
++                <Switch
++                    android:id="@+id/hide_menu_button"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentEnd="true"
++                    android:layout_centerVertical="true" />
++            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
++
+             <androidx.constraintlayout.widget.ConstraintLayout
+                 android:id="@+id/resolution_scaler_layout"
+                 android:layout_width="match_parent"
+diff --git a/ZalithLauncher/src/main/res/values/strings.xml b/ZalithLauncher/src/main/res/values/strings.xml
+index ce85557..d823f5e 100644
+--- a/ZalithLauncher/src/main/res/values/strings.xml
++++ b/ZalithLauncher/src/main/res/values/strings.xml
+@@ -540,6 +540,8 @@
+     <string name="setting_game_menu_location_left_or_bottom">Bottom Left</string>
+     <string name="setting_game_menu_location_right_or_top">Top Right</string>
+     <string name="setting_game_menu_location_right_or_bottom">Bottom Right</string>
++    <string name="setting_game_menu_hide_button_title">Hide floating menu button</string>
++    <string name="setting_game_menu_hide_button_desc">Hide the gear button in game. Swipe from the right edge of the screen to open the menu.</string>
+     <string name="setting_game_menu_alpha_title">Floating Window Opacity</string>
+     <string name="setting_game_menu_alpha_desc">Set the opacity of the game menu floating window</string>
+     <string name="setting_reboot_tip">This setting has been changed, but requires the app to be restarted to take effect!</string>

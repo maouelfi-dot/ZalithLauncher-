@@ -1,4 +1,4 @@
-name: Android Cl
+name: Android CI
 
 on:
   push:

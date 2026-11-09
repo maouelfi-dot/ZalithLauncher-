@@ -103,7 +103,10 @@ android {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
             resValue("string", "storageProviderAuthorities", storageProviderId)
-            signingConfig = signingConfigs.getByName("releaseBuild")
+            // Fork tanpa kunci rilis resmi: tanda tangani dengan debug.keystore agar build otomatis tetap jalan
+            signingConfig = if (System.getenv("MOVTERY_KEYSTORE_PASSWORD").isNullOrEmpty())
+                signingConfigs.getByName("customDebug")
+            else signingConfigs.getByName("releaseBuild")
         }
     }
 

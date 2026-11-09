@@ -40,6 +40,7 @@ import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.CheckResult
 import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.checkUsageAllowed
 import com.movtery.zalithlauncher.feature.accounts.LocalAccountUtils.Companion.openDialog
 import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
+import com.movtery.zalithlauncher.feature.accounts.SkinPreview
 import com.movtery.zalithlauncher.feature.accounts.OtherLoginHelper
 import com.movtery.zalithlauncher.feature.log.Logging
 import com.movtery.zalithlauncher.feature.login.OtherLoginApi
@@ -149,9 +150,46 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
         )
         var selected = models.indexOf(OfflineSkinServer.getModel(account)).coerceAtLeast(0)
 
+        val dp = ctx.resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+
+        val preview = android.widget.ImageView(ctx).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            layoutParams = android.widget.LinearLayout.LayoutParams(px(96), px(192)).apply { marginEnd = px(16) }
+        }
+        val group = android.widget.RadioGroup(ctx).apply {
+            orientation = android.widget.RadioGroup.VERTICAL
+            names.forEachIndexed { i, n ->
+                addView(android.widget.RadioButton(ctx).apply {
+                    id = 1000 + i
+                    text = n
+                    isChecked = i == selected
+                    setPadding(px(4), px(10), px(4), px(10))
+                })
+            }
+        }
+        var showBack = false
+        fun refreshPreview() {
+            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack)
+            if (bmp != null) preview.setImageBitmap(bmp) else preview.setImageDrawable(null)
+        }
+        preview.setOnClickListener { showBack = !showBack; refreshPreview() }
+        group.setOnCheckedChangeListener { _, checkedId ->
+            selected = (checkedId - 1000).coerceIn(0, models.size - 1)
+            refreshPreview()
+        }
+        refreshPreview()
+        val content = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(px(24), px(12), px(24), px(4))
+            addView(preview)
+            addView(group)
+        }
+
         AlertDialog.Builder(ctx)
             .setTitle(R.string.account_change_skin)
-            .setSingleChoiceItems(names, selected) { _, which -> selected = which }
+            .setView(android.widget.ScrollView(ctx).apply { addView(content) })
             .setPositiveButton(R.string.account_skin_pick_file) { _, _ ->
                 OfflineSkinServer.setModel(account, models[selected])
                 mSkinTargetAccount = account

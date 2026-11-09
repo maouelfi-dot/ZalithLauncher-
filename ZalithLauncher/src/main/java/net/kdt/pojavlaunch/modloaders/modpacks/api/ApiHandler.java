@@ -37,12 +37,40 @@ public class ApiHandler {
         additionalHeaders.put("x-api-key", apiKey);
     }
 
+    /** Mirror MCIM (dipakai Zalith Launcher 2) sebagai cadangan saat API resmi tidak bisa dijangkau. */
+    private String mirrorBaseUrl() {
+        if (baseUrl.startsWith("https://api.curseforge.com/v1")) return "https://mod.mcimirror.top/curseforge/v1";
+        if (baseUrl.startsWith("https://api.modrinth.com/v2")) return "https://mod.mcimirror.top/modrinth/v2";
+        return null;
+    }
+
+    /** Header untuk mirror: kunci API CurseForge tidak dikirim ke pihak ketiga. */
+    private Map<String, String> mirrorHeaders() {
+        Map<String, String> h = new ArrayMap<>(additionalHeaders);
+        h.remove("x-api-key");
+        return h;
+    }
+
     public <T> T get(String endpoint, Class<T> tClass) {
-        return getFullUrl(additionalHeaders, baseUrl + "/" + endpoint, tClass);
+        try {
+            return getFullUrl(additionalHeaders, baseUrl + "/" + endpoint, tClass);
+        } catch (RuntimeException e) {
+            String mirror = mirrorBaseUrl();
+            if (mirror == null) throw e;
+            Logging.w("ApiHandler", "API resmi gagal, mencoba mirror: " + mirror);
+            return getFullUrl(mirrorHeaders(), mirror + "/" + endpoint, tClass);
+        }
     }
 
     public <T> T get(String endpoint, HashMap<String, Object> query, Class<T> tClass) {
-        return getFullUrl(additionalHeaders, baseUrl + "/" + endpoint, query, tClass);
+        try {
+            return getFullUrl(additionalHeaders, baseUrl + "/" + endpoint, query, tClass);
+        } catch (RuntimeException e) {
+            String mirror = mirrorBaseUrl();
+            if (mirror == null) throw e;
+            Logging.w("ApiHandler", "API resmi gagal, mencoba mirror: " + mirror);
+            return getFullUrl(mirrorHeaders(), mirror + "/" + endpoint, query, tClass);
+        }
     }
 
     public <T> T post(String endpoint, T body, Class<T> tClass) {

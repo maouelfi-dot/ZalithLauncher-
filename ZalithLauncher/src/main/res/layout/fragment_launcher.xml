@@ -21,35 +21,35 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ScrollView
-            android:layout_width="match_parent"
+            android:layout_width="@dimen/_92sdp"
             android:layout_height="match_parent"
+            android:scrollbars="none"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:padding="@dimen/_6sdp">
+                android:columnCount="1"
+                android:padding="@dimen/_2sdp">
 
                 <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
                     android:id="@+id/about_button"
                     android:layout_width="0dp"
                     android:layout_columnWeight="1"
                     android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/_6sdp"
+                    android:layout_margin="@dimen/_2sdp"
                     android:background="@drawable/background_item_glass"
-                    android:paddingHorizontal="@dimen/_8sdp"
-                    android:paddingVertical="@dimen/_14sdp"
+                    android:paddingHorizontal="@dimen/_4sdp"
+                    android:paddingVertical="@dimen/_5sdp"
                     app:ripple_for_relative="true">
 
                     <ImageView
                         android:tint="@android:color/white"
                         android:id="@+id/about_icon"
-                        android:layout_width="@dimen/_24sdp"
-                        android:layout_height="@dimen/_24sdp"
+                        android:layout_width="@dimen/_16sdp"
+                        android:layout_height="@dimen/_16sdp"
                         android:layout_centerHorizontal="true"
                         android:scaleX="0.93"
                         android:scaleY="0.93"
@@ -59,9 +59,9 @@
                         android:id="@+id/about_text"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textSize="@dimen/_11sdp"
+                        android:textSize="@dimen/_8sdp"
                         android:gravity="center"
-                        android:layout_marginTop="@dimen/_6sdp"
+                        android:layout_marginTop="@dimen/_2sdp"
                         android:layout_below="@id/about_icon"
                         android:textColor="@android:color/white"
                         android:shadowColor="#CC000000" android:shadowDx="0" android:shadowDy="1" android:shadowRadius="3"/>
@@ -73,17 +73,17 @@
                     android:layout_width="0dp"
                     android:layout_columnWeight="1"
                     android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/_6sdp"
+                    android:layout_margin="@dimen/_2sdp"
                     android:background="@drawable/background_item_glass"
-                    android:paddingHorizontal="@dimen/_8sdp"
-                    android:paddingVertical="@dimen/_14sdp"
+                    android:paddingHorizontal="@dimen/_4sdp"
+                    android:paddingVertical="@dimen/_5sdp"
                     app:ripple_for_relative="true">
 
                     <ImageView
                         android:tint="@android:color/white"
                         android:id="@+id/custom_control_icon"
-                        android:layout_width="@dimen/_24sdp"
-                        android:layout_height="@dimen/_24sdp"
+                        android:layout_width="@dimen/_16sdp"
+                        android:layout_height="@dimen/_16sdp"
                         android:layout_centerHorizontal="true"
                         android:src="@drawable/ic_menu_custom_controls"/>
 
@@ -91,7 +91,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/custom_control_title"
-                        android:textSize="@dimen/_11sdp"
+                        android:textSize="@dimen/_8sdp"
                         android:gravity="center"
                         android:layout_marginTop="@dimen/_6sdp"
                         android:layout_below="@id/custom_control_icon"
@@ -105,17 +105,17 @@
                     android:layout_width="0dp"
                     android:layout_columnWeight="1"
                     android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/_6sdp"
+                    android:layout_margin="@dimen/_2sdp"
                     android:background="@drawable/background_item_glass"
-                    android:paddingHorizontal="@dimen/_8sdp"
-                    android:paddingVertical="@dimen/_14sdp"
+                    android:paddingHorizontal="@dimen/_4sdp"
+                    android:paddingVertical="@dimen/_5sdp"
                     app:ripple_for_relative="true">
 
                     <ImageView
                         android:tint="@android:color/white"
                         android:id="@+id/open_main_dir_icon"
-                        android:layout_width="@dimen/_24sdp"
-                        android:layout_height="@dimen/_24sdp"
+                        android:layout_width="@dimen/_16sdp"
+                        android:layout_height="@dimen/_16sdp"
                         android:layout_centerHorizontal="true"
                         android:src="@drawable/ic_folder"/>
 
@@ -123,7 +123,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/main_open_main_dir"
-                        android:textSize="@dimen/_11sdp"
+                        android:textSize="@dimen/_8sdp"
                         android:gravity="center"
                         android:layout_marginTop="@dimen/_6sdp"
                         android:layout_below="@id/open_main_dir_icon"
@@ -137,17 +137,17 @@
                     android:layout_width="0dp"
                     android:layout_columnWeight="1"
                     android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/_6sdp"
+                    android:layout_margin="@dimen/_2sdp"
                     android:background="@drawable/background_item_glass"
-                    android:paddingHorizontal="@dimen/_8sdp"
-                    android:paddingVertical="@dimen/_14sdp"
+                    android:paddingHorizontal="@dimen/_4sdp"
+                    android:paddingVertical="@dimen/_5sdp"
                     app:ripple_for_relative="true">
 
                     <ImageView
                         android:tint="@android:color/white"
                         android:id="@+id/install_jar_icon"
-                        android:layout_width="@dimen/_24sdp"
-                        android:layout_height="@dimen/_24sdp"
+                        android:layout_width="@dimen/_16sdp"
+                        android:layout_height="@dimen/_16sdp"
                         android:layout_centerHorizontal="true"
                         android:src="@drawable/ic_java"/>
 
@@ -155,7 +155,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/main_install_jar_file"
-                        android:textSize="@dimen/_11sdp"
+                        android:textSize="@dimen/_8sdp"
                         android:gravity="center"
                         android:layout_marginTop="@dimen/_6sdp"
                         android:layout_below="@id/install_jar_icon"
@@ -169,17 +169,17 @@
                     android:layout_width="0dp"
                     android:layout_columnWeight="1"
                     android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/_6sdp"
+                    android:layout_margin="@dimen/_2sdp"
                     android:background="@drawable/background_item_glass"
-                    android:paddingHorizontal="@dimen/_8sdp"
-                    android:paddingVertical="@dimen/_14sdp"
+                    android:paddingHorizontal="@dimen/_4sdp"
+                    android:paddingVertical="@dimen/_5sdp"
                     app:ripple_for_relative="true">
 
                     <ImageView
                         android:tint="@android:color/white"
                         android:id="@+id/share_logs_icon"
-                        android:layout_width="@dimen/_24sdp"
-                        android:layout_height="@dimen/_24sdp"
+                        android:layout_width="@dimen/_16sdp"
+                        android:layout_height="@dimen/_16sdp"
                         android:layout_centerHorizontal="true"
                         android:src="@drawable/ic_share"/>
 
@@ -187,7 +187,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/main_share_logs"
-                        android:textSize="@dimen/_11sdp"
+                        android:textSize="@dimen/_8sdp"
                         android:gravity="center"
                         android:layout_marginTop="@dimen/_6sdp"
                         android:layout_below="@id/share_logs_icon"

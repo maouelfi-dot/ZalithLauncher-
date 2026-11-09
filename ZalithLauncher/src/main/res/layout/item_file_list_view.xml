@@ -11,9 +11,9 @@
 
     <ImageView
         android:id="@+id/image"
-        android:layout_width="@dimen/_18sdp"
-        android:layout_height="@dimen/_18sdp"
-        android:layout_marginStart="@dimen/_12sdp"
+        android:layout_width="@dimen/_26sdp"
+        android:layout_height="@dimen/_26sdp"
+        android:layout_marginStart="@dimen/_10sdp"
         android:scaleType="centerInside"
         android:src="@drawable/ic_file"
         app:layout_constraintBottom_toBottomOf="parent"

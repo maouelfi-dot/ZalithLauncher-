@@ -15,6 +15,7 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.DrawableImageViewTarget;
 import com.movtery.zalithlauncher.R;
 import com.movtery.zalithlauncher.databinding.ItemFileListViewBinding;
+import com.movtery.zalithlauncher.feature.mod.ModIconLoader;
 import com.movtery.zalithlauncher.utils.file.FileTools;
 import com.movtery.zalithlauncher.utils.image.ImageUtils;
 import com.movtery.zalithlauncher.utils.stringutils.StringUtils;
@@ -205,6 +206,19 @@ public class FileRecyclerAdapter extends RecyclerView.Adapter<FileRecyclerAdapte
                         .override(binding.image.getWidth(), binding.image.getHeight())
                         .centerCrop()
                         .into(new DrawableImageViewTarget(binding.image));
+            } else if (ModIconLoader.isModFile(file)) {
+                binding.image.setImageDrawable(fileItemBean.image);
+                android.graphics.Bitmap cached = ModIconLoader.getCached(file);
+                if (cached != null) {
+                    binding.image.setImageBitmap(cached);
+                } else if (!ModIconLoader.isKnownMissing(file)) {
+                    final File target = file;
+                    ModIconLoader.load(target, bitmap -> {
+                        if (bitmap != null && mFileItemBean != null && target.equals(mFileItemBean.file)) {
+                            binding.image.setImageBitmap(bitmap);
+                        }
+                    });
+                }
             } else {
                 binding.image.setImageDrawable(fileItemBean.image);
             }

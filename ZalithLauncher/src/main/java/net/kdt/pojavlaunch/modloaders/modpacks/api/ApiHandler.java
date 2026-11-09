@@ -46,7 +46,7 @@ public class ApiHandler {
 
     /** Header untuk mirror: kunci API CurseForge tidak dikirim ke pihak ketiga. */
     private Map<String, String> mirrorHeaders() {
-        Map<String, String> h = new ArrayMap<>(additionalHeaders);
+        Map<String, String> h = new HashMap<>(additionalHeaders);
         h.remove("x-api-key");
         return h;
     }

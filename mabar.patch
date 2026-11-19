@@ -1,0 +1,2393 @@
+diff --git a/ZalithLauncher/src/main/AndroidManifest.xml b/ZalithLauncher/src/main/AndroidManifest.xml
+index 45047e0..6c37b66 100644
+--- a/ZalithLauncher/src/main/AndroidManifest.xml
++++ b/ZalithLauncher/src/main/AndroidManifest.xml
+@@ -15,6 +15,8 @@
+     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+     <uses-permission android:name="android.permission.INTERNET" />
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
++    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
++    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+diff --git a/ZalithLauncher/src/main/assets/mabar/wifi_icon.png b/ZalithLauncher/src/main/assets/mabar/wifi_icon.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d38af06c7a6784e7930a4efee2072c11d7f36ee
+GIT binary patch
+literal 4643
+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
+Z{|}+i>7NN0zsUdq002ovPDHLkV1lFH_|pIY
+
+literal 0
+HcmV?d00001
+
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt
+index 159cf7b..4982361 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/OfflineSkinServer.kt
+@@ -4,6 +4,7 @@ import android.graphics.Bitmap
+ import android.graphics.BitmapFactory
+ import android.util.Base64
+ import com.movtery.zalithlauncher.feature.log.Logging
++import com.movtery.zalithlauncher.setting.AllSettings
+ import com.movtery.zalithlauncher.utils.path.PathManager
+ import net.kdt.pojavlaunch.value.MinecraftAccount
+ import org.json.JSONArray
+@@ -11,38 +12,107 @@ import org.json.JSONObject
+ import java.io.ByteArrayOutputStream
+ import java.io.File
+ import java.io.InputStream
+-import java.net.InetAddress
++import java.net.InetSocketAddress
+ import java.net.ServerSocket
+ import java.net.Socket
+ import java.net.URLDecoder
++import java.security.KeyFactory
+ import java.security.KeyPair
+ import java.security.KeyPairGenerator
+ import java.security.MessageDigest
+ import java.security.Signature
++import java.security.spec.PKCS8EncodedKeySpec
++import java.security.spec.X509EncodedKeySpec
++import java.util.UUID
+ import java.util.concurrent.ConcurrentHashMap
+ 
++/** Port server skin yang sama di semua HP: URL tekstur memakai "http://localhost:<port>/textures/<hash>". */
++private const val SHARED_PORT = 24447
++
++/**
++ * Kunci penanda tangan TETAP (sama di semua HP). Tiap HP hanya mempercayai kunci server skin miliknya sendiri,
++ * jadi profil pemain lain yang dijawab server skin HOST harus memakai kunci yang sama. Bukan rahasia (hanya untuk skin offline lokal).
++ * Kunci privat TIDAK di-cast ke RSAPrivateCrtKey (gagal di Android 8.1).
++ */
++private const val SHARED_KEY_PKCS8 =
++        "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCkPazpRSR0P3fFfMvOZQQgHpzN+Df6k1PrcxR0eZF4Y2glqI0C" +
++        "R3XyEvzjUb7+qdNE+7By/auhs+LJaArgFTS/8JAR3b2IwMlezAfH7KCA62GUZIGrcXHua0cF2uwLAR9OisXYQUo3EvUE1NuXEopD" +
++        "FHFq/8PEmHcJZNUj785f0AJd9oMDR1uNNSWSKBFYh+ahnTxLdIbBRCN2FjhZWetoAFefr8jMHgRaE696DyrF0v5U9sFwWIdEPrBR" +
++        "xXbXiH36IAtfk3uIVb8nANNSK2Nh65IkzhICtOKx3NrBcyFLniYJxN0u9mucatPEV6ajh9YJR9BFGnfs+uNF4KdRhWSTAgMBAAEC" +
++        "ggEAAkjXvOIfVBafhEaGHZ4K5QxH9hcVZqdIXyZzCsoeG34wFqxpIBz9jc51Ag+pbnVorbVdvcIiWKKquhtEyEH2dK0HjZgRNab1" +
++        "phuEbpcWBg6mhTl/EqY5uK1GIaJRiJ2m+weAu2jwSIlukXcJTukNHBdbgVEcpTSeg0NWmHD5F+mqrUVm0fanZf81ehlU1CB8Kata" +
++        "qkUqBFB6Q7gaUcqUEA/IaykiaywfOt2cGes4FWnsZhDNTvcUVEVQuZ+h9gtgUXHR7i7DH/AsLPyMIFAMaywc4I5p+CU5yWke6wgN" +
++        "TEBqhe/H07gakE0DLyWYbKFHllkIR1hVM9DQFoe/Q6KusQKBgQDb2Zks/HPdvpq/1pNKn+cbuh5mV3GI4EF58FmBliOWi0NV4C7P" +
++        "0kOa/UWDFXsN2KhnYsbCNW7LkqdonyD/O5hY68HdpL0z49LLMkxHQeNiMWunLehFiRTU7QweVZPJYUP4jLGNG6JhQUVXUlNhWBub" +
++        "d8isglVF/Uke75xyhUbXrwKBgQC/P0J2qxaBx84ax0LaFO5xjwC1JV9b0igEkRd3Nqjy9Jh6IB7qD/FThI8cA0Rbp0uOEzZZ1V7B" +
++        "J9ylHgqxGbWE3iO3yFjG8MGZ4PTvy7X+tlwu2TeKJ9mytxS3NiGGjzh8W4QLzpoOD8ecTWchD6JPkPxS8h04aOTndMEQA8AWXQKB" +
++        "gGJBjA3o/je6ehsG4WlWsclYk0GWDy3nXBwNaVNbMKiVsRBuUz2acZCRZUHCle6ISCt8n+woSU4+SwedJvgrQFltdIWEnPLV/V3H" +
++        "KwQl1GQMRlq/T7HUJDVNhD8CbDxydhhdePThxt7EdyMhrhYxdJU1IcDHtyjCnK1w1XDxU8oNAoGAOnuUzocpHczE+SlgByKJfA53" +
++        "7+0ayRBuDl90Jo9/gLRNgGMcMQVpDdomjTFukPyKvUqgvz3heP3AmnmiWV/8Q0JO9997TnLHMVA6dq373IVVkTn5ovTmvKEB47jY" +
++        "7bYUVusBaT7nm082AlUlKVYHk39Jue+yAdMJ1MG+XDBZaD0CgYAXrBIyolGbpg71syNiSUIIwL4NBay4T5ZwdUcmKglB0+wawYwa" +
++        "hmdWtYycoamqmKxfU85IecFT+KUxc7/xm3PbAEAO/D5wWeDnWBHyK62wQyhD84Ris+ho/9Q1SFprLrIfgoUaNo3tjQzPAjAWFKQY" +
++        "nt3CRBSY5FPxloIJ3pujsQ=="
++
++private const val SHARED_KEY_X509 =
++        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApD2s6UUkdD93xXzLzmUEIB6czfg3+pNT63MUdHmReGNoJaiNAkd18hL8" +
++        "41G+/qnTRPuwcv2robPiyWgK4BU0v/CQEd29iMDJXswHx+yggOthlGSBq3Fx7mtHBdrsCwEfTorF2EFKNxL1BNTblxKKQxRxav/D" +
++        "xJh3CWTVI+/OX9ACXfaDA0dbjTUlkigRWIfmoZ08S3SGwUQjdhY4WVnraABXn6/IzB4EWhOveg8qxdL+VPbBcFiHRD6wUcV214h9" +
++        "+iALX5N7iFW/JwDTUitjYeuSJM4SArTisdzawXMhS54mCcTdLvZrnGrTxFemo4fWCUfQRRp37PrjReCnUYVkkwIDAQAB"
++
+ /**
+- * Tiny local Yggdrasil-compatible skin server so offline accounts can show a custom skin in game.
+- * Used together with authlib-injector (`-javaagent:authlib-injector.jar=http://localhost:PORT`).
++ * Server skin lokal yang kompatibel dengan Yggdrasil, supaya akun offline bisa menampilkan skin dan cape di game.
++ * Dipakai bersama authlib-injector (`-javaagent:authlib-injector.jar=http://localhost:PORT`).
+  *
+- * No extra dependencies: plain ServerSocket + org.json. Only serves 127.0.0.1.
+- * The design (endpoints, signed "textures" property) follows the public authlib-injector
+- * server protocol, the same one HMCL / Zalith Launcher 2 use for offline skins.
++ * Tanpa dependensi tambahan: ServerSocket biasa + org.json.
++ * Mendengarkan di semua antarmuka agar HP teman (hotspot/WiFi) bisa mengunduh tekstur lewat Mabar.
++ * Desain endpoint dan properti "textures" bertanda tangan mengikuti protokol authlib-injector yang sama
++ * dengan HMCL dan Zalith Launcher 2.
+  */
+ object OfflineSkinServer {
+     private const val TAG = "OfflineSkinServer"
++    private const val MAX_BODY = 1 shl 20
+ 
+-    private class Character(val uuid: String, val name: String, val skin: ByteArray, val hash: String, val slim: Boolean)
++    private class Character(
++        val uuid: String,
++        val name: String,
++        val skin: ByteArray?,
++        val skinHash: String?,
++        val cape: ByteArray?,
++        val capeHash: String?,
++        val slim: Boolean
++    )
+ 
+     private val byUuid = ConcurrentHashMap<String, Character>()
+     private val byName = ConcurrentHashMap<String, Character>()
+     private var serverSocket: ServerSocket? = null
++
++    /** Dipanggil (di thread koneksi) saat game menanyakan UUID yang belum dikenal; boleh menunggu beberapa detik sambil mengunduh skin teman. */
++    @Volatile
++    @JvmField
++    var unknownProfileResolver: ((String) -> Unit)? = null
++
++    /** Lapisan cadangan: dipanggil bila game meminta tekstur (hash) yang belum ada. */
++    @Volatile
++    @JvmField
++    var unknownTextureResolver: ((String) -> Unit)? = null
++
+     private val keyPair: KeyPair by lazy {
+-        KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
++        runCatching {
++            val kf = KeyFactory.getInstance("RSA")
++            val priv = kf.generatePrivate(PKCS8EncodedKeySpec(Base64.decode(SHARED_KEY_PKCS8, Base64.DEFAULT)))
++            val pub = kf.generatePublic(X509EncodedKeySpec(Base64.decode(SHARED_KEY_X509, Base64.DEFAULT)))
++            KeyPair(pub, priv)
++        }.getOrElse { e ->
++            Logging.w(TAG, "Kunci tetap gagal dimuat, memakai kunci acak", e)
++            KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
++        }
+     }
+ 
+     fun skinFileOf(account: MinecraftAccount): File = File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".png")
+ 
++    @JvmStatic
++    fun capeFileOf(account: MinecraftAccount): File = File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".cape.png")
++
+     private fun modelFileOf(account: MinecraftAccount): File = File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model")
+ 
+     /** The chosen arm model: "classic" (Steve), "slim" (Alex) or null for automatic detection. */
+@@ -70,40 +140,107 @@ object OfflineSkinServer {
+         modelFileOf(account).delete()
+     }
+ 
++    /** Removes the custom cape. */
++    @JvmStatic
++    fun resetCape(account: MinecraftAccount) {
++        capeFileOf(account).delete()
++    }
++
++    /** True jika akun ini memakai arm model slim (pilihan pengguna, atau deteksi otomatis dari file skin). */
++    @JvmStatic
++    fun isSlim(account: MinecraftAccount): Boolean {
++        val file = skinFileOf(account)
++        return when (getModel(account)) {
++            "slim" -> true
++            "classic" -> false
++            else -> file.isFile && runCatching { isSlimSkin(file.readBytes()) }.getOrDefault(false)
++        }
++    }
++
++    private fun mabarEnabled(): Boolean = runCatching { AllSettings.mabarLan.getValue() }.getOrDefault(false)
++
+     /**
+-     * Starts the server (if needed) and registers the account's local skin.
+-     * @return the port, or null if the account has no custom skin / the server failed to start.
++     * Starts the server (if needed) and registers the account's local skin/cape.
++     * Server juga dijalankan bila Mabar aktif, walau akun tidak punya skin sendiri, supaya skin teman bisa dilihat.
++     * @return the port, or null if there is nothing to serve / the server failed to start.
+      */
+     @JvmStatic
+     @Synchronized
+     fun prepare(account: MinecraftAccount): Int? {
+-        val file = skinFileOf(account)
+-        if (!file.isFile) return null
++        val skinFile = skinFileOf(account)
++        val capeFile = capeFileOf(account)
++        if (!skinFile.isFile && !capeFile.isFile && !mabarEnabled()) return null
+         return runCatching {
+-            val bytes = file.readBytes()
+-            val uuid = account.profileId.replace("-", "").lowercase()
+-            val slim = when (getModel(account)) {
++            val skinBytes = skinFile.takeIf { it.isFile }?.readBytes()
++            val capeBytes = capeFile.takeIf { it.isFile }?.readBytes()
++            val slim = skinBytes != null && when (getModel(account)) {
+                 "slim" -> true
+                 "classic" -> false
+-                else -> isSlimSkin(bytes)
+-            }
+-            val character = Character(uuid, account.username, bytes, sha256Hex(bytes), slim)
+-            byUuid[uuid] = character
+-            byName[account.username.lowercase()] = character
+-
+-            if (serverSocket == null || serverSocket!!.isClosed) {
+-                val socket = ServerSocket(0, 20, InetAddress.getByName("127.0.0.1"))
+-                serverSocket = socket
+-                Thread({ acceptLoop(socket) }, "OfflineSkinServer").apply { isDaemon = true }.start()
+-                // Generating a 2048-bit RSA key can take several seconds on a slow phone. Do it now, in the
+-                // background, so the game's first request to the server is not stuck waiting for it.
+-                Thread({ keyPair }, "OfflineSkinServer-key").apply { isDaemon = true }.start()
++                else -> isSlimSkin(skinBytes)
+             }
+-            Logging.i(TAG, "Serving skin for ${account.username} (slim=${character.slim}) on port ${serverSocket!!.localPort}")
+-            serverSocket!!.localPort
++            registerCharacter(account.profileId, account.username, skinBytes, capeBytes, slim)
++            ensureStarted()
++            val port = getPort()
++            Logging.i(TAG, "Serving skin for ${account.username} (slim=$slim) on port $port")
++            port
+         }.onFailure { Logging.e(TAG, "Failed to start offline skin server: ${it.message}") }.getOrNull()
+     }
+ 
++    /**
++     * Tambahkan pemain lain (HP teman di hotspot) agar skin/cape-nya terlihat di game ini.
++     * Server LAN offline memberi UUID dari nama ("OfflinePlayer:nama"), sedangkan host memakai UUID akunnya sendiri,
++     * jadi karakter didaftarkan di kedua UUID.
++     */
++    @JvmStatic
++    fun addRemoteCharacter(name: String, uuid: String, slim: Boolean, skinBytes: ByteArray?, capeBytes: ByteArray?) {
++        registerCharacter(uuid, name, skinBytes, capeBytes, slim)
++        Logging.i(TAG, "Added remote character $name ($uuid)")
++    }
++
++    private fun offlineUuidOf(name: String): String =
++        UUID.nameUUIDFromBytes("OfflinePlayer:$name".toByteArray(Charsets.UTF_8)).toString().replace("-", "")
++
++    private fun registerCharacter(profileId: String, name: String, skinBytes: ByteArray?, capeBytes: ByteArray?, slim: Boolean) {
++        val skinHash = skinBytes?.let { sha256Hex(it) }
++        val capeHash = capeBytes?.let { sha256Hex(it) }
++        val uuid = profileId.replace("-", "").lowercase()
++        val offlineUuid = offlineUuidOf(name)
++        //server LAN offline memberi UUID dari NAMA, jadi game di HP teman mencari skin dengan UUID itu
++        for (id in setOf(uuid, offlineUuid.lowercase())) {
++            byUuid[id] = Character(id, name, skinBytes, skinHash, capeBytes, capeHash, slim)
++        }
++        byName[name.lowercase()] = Character(offlineUuid, name, skinBytes, skinHash, capeBytes, capeHash, slim)
++    }
++
++    @Synchronized
++    private fun ensureStarted() {
++        if (serverSocket?.isClosed == false) return
++        val socket = openSocket()
++        serverSocket = socket
++        Thread({ acceptLoop(socket) }, "OfflineSkinServer").apply { isDaemon = true }.start()
++        // Membuat kunci bisa lama di HP lambat. Lakukan sekarang di latar belakang supaya permintaan pertama game tidak menunggu.
++        Thread({ keyPair }, "OfflineSkinServer-key").apply { isDaemon = true }.start()
++    }
++
++    private fun openSocket(): ServerSocket {
++        return try {
++            ServerSocket().apply {
++                reuseAddress = true
++                bind(InetSocketAddress(SHARED_PORT), 50)
++            }
++        } catch (e: Exception) {
++            Logging.w(TAG, "Port $SHARED_PORT tidak bisa dipakai, memakai port acak (skin lintas-HP mungkin tidak muncul)", e)
++            ServerSocket().apply {
++                reuseAddress = true
++                bind(InetSocketAddress(0), 50)
++            }
++        }
++    }
++
++    /** Port server skin yang sedang berjalan, atau null jika belum aktif. */
++    @JvmStatic
++    fun getPort(): Int? = serverSocket?.takeIf { !it.isClosed }?.localPort
++
+     /** Validates a skin image: PNG, width multiple of 64, height equal to width or half of it. */
+     @JvmStatic
+     fun isValidSkin(bytes: ByteArray): Boolean {
+@@ -114,6 +251,19 @@ object OfflineSkinServer {
+         return w >= 64 && w % 64 == 0 && (h == w || h * 2 == w)
+     }
+ 
++    /** Validates a cape image: 64x32 (atau kelipatannya), 22x17 klasik, atau 46x22 (OptiFine). */
++    @JvmStatic
++    fun isValidCape(bytes: ByteArray): Boolean {
++        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
++        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
++        val w = opts.outWidth
++        val h = opts.outHeight
++        if (w <= 0 || h <= 0) return false
++        return (w >= 64 && w % 64 == 0 && h * 2 == w) ||
++            (w >= 22 && w % 22 == 0 && h * 22 == w * 17) ||
++            (w >= 46 && w % 46 == 0 && h * 46 == w * 22)
++    }
++
+     /** Slim ("Alex") arms leave the columns x=54..55, y=20..31 (at 64px scale) transparent. */
+     private fun isSlimSkin(bytes: ByteArray): Boolean {
+         val bmp: Bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
+@@ -139,7 +289,7 @@ object OfflineSkinServer {
+     private fun handle(client: Socket) {
+         client.use { c ->
+             runCatching {
+-                c.soTimeout = 10_000
++                c.soTimeout = 15_000
+                 val input = c.getInputStream()
+                 val requestLine = readLine(input) ?: return
+                 val parts = requestLine.split(" ")
+@@ -151,7 +301,7 @@ object OfflineSkinServer {
+                     if (line.isEmpty()) break
+                     if (line.startsWith("content-length:", ignoreCase = true)) contentLength = line.substring(15).trim().toIntOrNull() ?: 0
+                 }
+-                val body = if (contentLength > 0) ByteArray(minOf(contentLength, 1 shl 20)).also { readFully(input, it) } else ByteArray(0)
++                val body = if (contentLength > 0) ByteArray(minOf(contentLength, MAX_BODY)).also { readFully(input, it) } else ByteArray(0)
+ 
+                 val rawPath = parts[1]
+                 val path = rawPath.substringBefore('?')
+@@ -164,6 +314,8 @@ object OfflineSkinServer {
+     private fun route(c: Socket, method: String, path: String, query: Map<String, String>, body: ByteArray) {
+         when {
+             method == "GET" && (path == "/" || path.isEmpty()) -> json(c, rootJson())
++            method == "GET" && path == "/status" ->
++                json(c, JSONObject().put("user.count", byUuid.size).put("token.count", 0).toString())
+             method == "POST" && path == "/api/profiles/minecraft" -> {
+                 val names = JSONArray(String(body, Charsets.UTF_8))
+                 val result = JSONArray()
+@@ -175,23 +327,50 @@ object OfflineSkinServer {
+                 json(c, result.toString())
+             }
+             method == "GET" && path == "/sessionserver/session/minecraft/hasJoined" -> {
+-                val ch = query["username"]?.lowercase()?.let { byName[it] }
+-                if (ch == null) empty(c, 204) else json(c, profileJson(ch, c))
++                val username = query["username"]
++                if (username == null) {
++                    empty(c, 204)
++                } else {
++                    val offlineId = offlineUuidOf(username)
++                    if (!byName.containsKey(username.lowercase())) {
++                        //lapisan 1: coba unduh skin pemain ini sekarang juga dari siaran temannya
++                        runCatching { unknownProfileResolver?.invoke(offlineId) }
++                    }
++                    //lapisan 2: jika tetap belum ada, JANGAN menolak login; beri profil polos tanpa skin
++                    val ch = byName[username.lowercase()] ?: Character(offlineId, username, null, null, null, null, false)
++                    json(c, profileJson(ch, c))
++                }
+             }
+             method == "POST" && path == "/sessionserver/session/minecraft/join" -> empty(c, 204)
+             method == "GET" && path.startsWith("/sessionserver/session/minecraft/profile/") -> {
+-                val ch = byUuid[path.substringAfterLast('/').lowercase()]
++                val id = path.substringAfterLast('/').lowercase().replace("-", "")
++                if (!byUuid.containsKey(id)) runCatching { unknownProfileResolver?.invoke(id) }
++                val ch = byUuid[id]
+                 if (ch == null) empty(c, 204) else json(c, profileJson(ch, c))
+             }
+             method == "GET" && path.startsWith("/textures/") -> {
+                 val hash = path.substringAfterLast('/')
+-                val ch = byUuid.values.firstOrNull { it.hash == hash }
+-                if (ch == null) empty(c, 404) else respond(c, 200, "image/png", ch.skin, "Cache-Control: max-age=2592000, public\r\n")
++                var data = findTexture(hash)
++                if (data == null) {
++                    //lapisan 3: tekstur belum disinkronkan -> unduh dari teman lalu coba lagi
++                    runCatching { unknownTextureResolver?.invoke(hash) }
++                    data = findTexture(hash)
++                }
++                if (data == null) empty(c, 404)
++                else respond(c, 200, "image/png", data, "Cache-Control: max-age=2592000, public\r\nETag: \"$hash\"\r\n")
+             }
+             else -> empty(c, 404)
+         }
+     }
+ 
++    private fun findTexture(hash: String): ByteArray? {
++        for (ch in byUuid.values) {
++            if (ch.skinHash == hash) return ch.skin
++            if (ch.capeHash == hash) return ch.cape
++        }
++        return null
++    }
++
+     private fun rootJson(): String {
+         val pem = "-----BEGIN PUBLIC KEY-----\n" +
+                 Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP) + "\n-----END PUBLIC KEY-----"
+@@ -207,15 +386,22 @@ object OfflineSkinServer {
+     }
+ 
+     private fun profileJson(ch: Character, c: Socket): String {
+-        val root = "http://localhost:${c.localPort}"
+-        val skin = JSONObject().put("url", "$root/textures/${ch.hash}")
+-        if (ch.slim) skin.put("metadata", JSONObject().put("model", "slim"))
++        val root = "http://localhost:${getPort() ?: c.localPort}"
+         val textures = JSONObject()
++        ch.skinHash?.let { hash ->
++            val skin = JSONObject().put("url", "$root/textures/$hash")
++            if (ch.slim) skin.put("metadata", JSONObject().put("model", "slim"))
++            textures.put("SKIN", skin)
++        }
++        ch.capeHash?.let { hash ->
++            textures.put("CAPE", JSONObject().put("url", "$root/textures/$hash"))
++        }
++        val payload = JSONObject()
+             .put("timestamp", System.currentTimeMillis())
+             .put("profileId", ch.uuid)
+             .put("profileName", ch.name)
+-            .put("textures", JSONObject().put("SKIN", skin))
+-        val encoded = Base64.encodeToString(textures.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
++            .put("textures", textures)
++        val encoded = Base64.encodeToString(payload.toString().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+         val signature = Signature.getInstance("SHA1withRSA").run {
+             initSign(keyPair.private)
+             update(encoded.toByteArray(Charsets.UTF_8))
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/SkinPreview.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/SkinPreview.kt
+index a23f253..8943edd 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/SkinPreview.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/accounts/SkinPreview.kt
+@@ -13,7 +13,7 @@ object SkinPreview {
+ 
+     @JvmStatic
+     @JvmOverloads
+-    fun renderFront(file: File, slim: Boolean, scale: Int = 8, back: Boolean = false): Bitmap? {
++    fun renderFront(file: File, slim: Boolean, scale: Int = 8, back: Boolean = false, capeFile: File? = null): Bitmap? {
+         if (!file.isFile) return null
+         val skin = runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull() ?: return null
+         if (skin.width != 64 || (skin.height != 64 && skin.height != 32)) return null
+@@ -55,6 +55,25 @@ object SkinPreview {
+             part(if (back) 12 else 4, 36, 4, 12, if (back) 8 else 4, 20)
+             part(if (back) 12 else 4, 52, 4, 12, if (back) 4 else 8, 20)
+         }
++        // Cape terlihat di tampak belakang: sisi luar cape ada di (1,1)-(11,17) pada skala dasarnya
++        if (back && capeFile != null && capeFile.isFile) {
++            val cape = runCatching { BitmapFactory.decodeFile(capeFile.absolutePath) }.getOrNull()
++            if (cape != null) {
++                val w = cape.width
++                val h = cape.height
++                val s = when {
++                    h * 2 == w && w % 64 == 0 -> w / 64
++                    h * 22 == w * 17 && w % 22 == 0 -> w / 22
++                    h * 46 == w * 22 && w % 46 == 0 -> w / 46
++                    else -> 0
++                }
++                if (s > 0) {
++                    c.drawBitmap(cape, Rect(s, s, 11 * s, 17 * s),
++                        Rect(3 * scale, 8 * scale, 13 * scale, 24 * scale), paint)
++                }
++                cape.recycle()
++            }
++        }
+         skin.recycle()
+         return out
+     }
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarDialog.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarDialog.kt
+new file mode 100644
+index 0000000..9a56759
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarDialog.kt
+@@ -0,0 +1,79 @@
++package com.movtery.zalithlauncher.feature.mabar
++
++import android.app.Activity
++import android.content.ClipData
++import android.content.ClipboardManager
++import android.content.Context
++import android.os.Handler
++import android.os.Looper
++import android.widget.Button
++import android.widget.LinearLayout
++import android.widget.ScrollView
++import android.widget.TextView
++import android.widget.Toast
++import androidx.appcompat.app.AlertDialog
++import com.movtery.zalithlauncher.R
++
++/** Dialog status Mabar di dalam game (Mabar jalan di proses game, jadi statusnya hanya bisa dilihat dari sini). */
++object MabarDialog {
++    private const val REFRESH_MS = 1000L
++
++    @JvmStatic
++    fun show(activity: Activity) {
++        val dp = activity.resources.displayMetrics.density
++        fun px(v: Int) = (v * dp).toInt()
++
++        val text = TextView(activity).apply { setPadding(px(4), px(4), px(4), px(8)) }
++        val copy = Button(activity).apply { setText(R.string.mabar_copy_ip) }
++        val content = LinearLayout(activity).apply {
++            orientation = LinearLayout.VERTICAL
++            setPadding(px(24), px(12), px(24), px(4))
++            addView(text)
++            addView(copy)
++        }
++
++        val dialog = AlertDialog.Builder(activity)
++            .setTitle(R.string.mabar_title)
++            .setView(ScrollView(activity).apply { addView(content) })
++            .setPositiveButton(R.string.mabar_close, null)
++            .create()
++
++        val handler = Handler(Looper.getMainLooper())
++        val refresh = object : Runnable {
++            override fun run() {
++                val state = MabarLan.state.value
++                text.text = render(activity, state)
++                copy.isEnabled = state.bestIp != null
++                handler.postDelayed(this, REFRESH_MS)
++            }
++        }
++        copy.setOnClickListener {
++            val ip = MabarLan.state.value.bestIp ?: return@setOnClickListener
++            val cm = activity.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
++            cm?.setPrimaryClip(ClipData.newPlainText("ip", ip))
++            Toast.makeText(activity, activity.getString(R.string.mabar_copied, ip), Toast.LENGTH_SHORT).show()
++        }
++        dialog.setOnDismissListener { handler.removeCallbacks(refresh) }
++        dialog.show()
++        refresh.run()
++    }
++
++    private fun render(ctx: Context, s: MabarLan.State): String {
++        if (!s.running) return ctx.getString(R.string.mabar_status_off)
++        val lines = ArrayList<String>()
++        lines += s.bestIp?.let { ctx.getString(R.string.mabar_your_ip, it) } ?: ctx.getString(R.string.mabar_no_network)
++        val own = s.ownLanPort
++        val host = s.host
++        when {
++            own != null -> lines += ctx.getString(R.string.mabar_status_hosting, own)
++            host != null -> {
++                lines += ctx.getString(R.string.mabar_status_found, host.ip, host.port)
++                if (s.pingMs >= 0) lines += ctx.getString(R.string.mabar_ping, s.pingMs)
++            }
++            else -> lines += ctx.getString(R.string.mabar_status_searching)
++        }
++        if (s.activeLinks > 0) lines += ctx.getString(R.string.mabar_status_links, s.activeLinks)
++        if (s.syncedPlayers.isNotEmpty()) lines += ctx.getString(R.string.mabar_status_skins, s.syncedPlayers.joinToString(", "))
++        return lines.joinToString("\n\n")
++    }
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarLan.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarLan.kt
+new file mode 100644
+index 0000000..a1ecd2f
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarLan.kt
+@@ -0,0 +1,1198 @@
++/*
++ * Maou Launcher - Mabar Hotspot
++ *
++ * Mabar LAN lewat hotspot tanpa ketik IP/port:
++ *  1. HP host: mendengar pengumuman "Open to LAN" bawaan game, lalu menyiarkannya lewat
++ *     broadcast UDP ke seluruh antarmuka (termasuk antarmuka hotspot).
++ *  2. HP teman: menerima siaran itu, lalu menjalankan proxy lokal 127.0.0.1:[PROXY_PORT].
++ *     Entri "Mabar Hotspot" di daftar server game menunjuk ke proxy ini. Proxy menjawab
++ *     status server dengan ikon WiFi dan ping asli ke host, lalu menyambungkan login ke host.
++ *  3. Sinkron skin & cape: tiap HP menyiarkan skin/cape-nya, HP lain mengunduh dan
++ *     menyajikannya lewat server Yggdrasil offline lokal, sehingga terlihat oleh semua pemain.
++ */
++
++package com.movtery.zalithlauncher.feature.mabar
++
++import android.content.Context
++import android.net.wifi.WifiManager
++import android.os.Process
++import android.util.Base64
++import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
++import com.movtery.zalithlauncher.setting.AllSettings
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.StateFlow
++import kotlinx.coroutines.flow.asStateFlow
++import org.json.JSONObject
++import java.io.ByteArrayInputStream
++import java.io.ByteArrayOutputStream
++import java.io.Closeable
++import java.io.EOFException
++import java.io.File
++import java.io.IOException
++import java.io.InputStream
++import java.io.OutputStream
++import java.io.RandomAccessFile
++import java.net.DatagramPacket
++import java.net.DatagramSocket
++import java.net.HttpURLConnection
++import java.net.Inet4Address
++import java.net.InetAddress
++import java.net.InetSocketAddress
++import java.net.MulticastSocket
++import java.net.NetworkInterface
++import java.net.ServerSocket
++import java.net.Socket
++import java.net.SocketTimeoutException
++import java.net.URL
++import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.Executors
++import java.util.concurrent.atomic.AtomicInteger
++
++private const val TAG = "MabarLan"
++
++object MabarLan {
++    /** Port siaran antar-HP (bukan port bawaan game, supaya tidak bentrok) */
++    const val BEACON_PORT = 24445
++
++    /** Port proxy lokal yang dituju entri "Mabar Hotspot" di daftar server */
++    const val PROXY_PORT = 25599
++
++    /** Batas pemain LAN bawaan Minecraft (IntegratedServer = 8). Ditampilkan apa adanya. */
++    const val VANILLA_MAX_PLAYERS = 8
++
++    private const val VANILLA_MULTICAST = "224.0.2.60"
++    private const val VANILLA_PORT = 4445
++    private const val HOST_TTL_MS = 8_000L
++    private const val LAN_TTL_MS = 12_000L
++    private const val PEER_TTL_MS = 20_000L
++    private const val STICKY_HOST_MS = 20_000L
++    private const val VERIFY_TTL_MS = 10_000L
++    private const val MAX_TEXTURE_BYTES = 512 * 1024
++
++    data class LocalIp(val iface: String, val address: String)
++    data class HostInfo(val ip: String, val port: Int, val motd: String)
++
++    data class State(
++        val running: Boolean = false,
++        val localIps: List<LocalIp> = emptyList(),
++        /** IP terbaik HP ini untuk teman (hotspot/WiFi), null jika tidak ada jaringan */
++        val bestIp: String? = null,
++        /** Dunia LAN milik HP ini (mode host) */
++        val ownLanPort: Int? = null,
++        /** Host hotspot yang ditemukan dari HP lain (mode teman) */
++        val host: HostInfo? = null,
++        /** Ping asli ke host (ms), -1 jika belum diukur */
++        val pingMs: Int = -1,
++        /** Jumlah sambungan aktif lewat proxy */
++        val activeLinks: Int = 0,
++        /** Pemain lain yang skin/cape-nya sudah disinkronkan */
++        val syncedPlayers: List<String> = emptyList()
++    )
++
++    private val _state = MutableStateFlow(State())
++    val state: StateFlow<State> = _state.asStateFlow()
++
++    private var session: Session? = null
++
++    private fun isMobileIface(name: String): Boolean {
++        val n = name.lowercase()
++        return n.startsWith("rmnet") || n.startsWith("ccmni") || n.startsWith("v4-rmnet") ||
++            n.startsWith("pdp") || n.startsWith("ppp") || n.startsWith("tun") ||
++            n.startsWith("dummy") || n.startsWith("clat") || n.startsWith("ipsec") || n.startsWith("wg")
++    }
++
++    private fun isPrivateLan(ip: String): Boolean {
++        val p = ip.split('.').mapNotNull { it.toIntOrNull() }
++        if (p.size != 4) return false
++        return p[0] == 10 || (p[0] == 172 && p[1] in 16..31) || (p[0] == 192 && p[1] == 168) ||
++            (p[0] == 169 && p[1] == 254)
++    }
++
++    /** Semua IPv4 HP ini (dipakai untuk mengenali paket milik sendiri). */
++    private fun allLocalIpv4(): List<LocalIp> = runCatching {
++        NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
++            .filter { it.isUp && !it.isLoopback }
++            .flatMap { nif ->
++                nif.inetAddresses.toList()
++                    .filterIsInstance<Inet4Address>()
++                    .mapNotNull { a -> a.hostAddress?.let { LocalIp(nif.name, it) } }
++            }
++    }.getOrDefault(emptyList())
++
++    private fun ifacePriority(ip: LocalIp): Int {
++        val n = ip.iface.lowercase()
++        return when {
++            n.startsWith("ap") || n.startsWith("swlan") || n.startsWith("softap") || n == "wlan1" -> 0 //HP ini pemberi hotspot
++            n.startsWith("wlan") -> 1 //HP ini tersambung ke WiFi/hotspot
++            isPrivateLan(ip.address) -> 2
++            else -> 3
++        }
++    }
++
++    /**
++     * Daftar IPv4 jaringan lokal HP ini untuk ditampilkan di menu: hanya jaringan yang bisa dicapai teman
++     * (kuota/seluler disembunyikan), hotspot/WiFi di urutan pertama.
++     */
++    fun localIpv4(): List<LocalIp> {
++        val all = allLocalIpv4()
++        val lan = all.filter { !isMobileIface(it.iface) && isPrivateLan(it.address) }
++        return (lan.ifEmpty { all.filter { !isMobileIface(it.iface) } }.ifEmpty { all })
++            .sortedBy { ifacePriority(it) }
++    }
++
++    /**
++     * Mulai layanan Mabar. Aman dipanggil berulang; sesi lama dihentikan dulu.
++     * @param skinServer server Yggdrasil offline (null jika tidak aktif -> sinkron skin dilewati)
++     */
++    @Synchronized
++    fun start(
++        context: Context,
++        gameDir: File,
++        account: MabarAccount,
++        skinServer: OfflineSkinServer?
++    ) {
++        stop()
++        if (!AllSettings.mabarLan.getValue()) return
++        runCatching {
++            session = Session(context.applicationContext, gameDir, account, skinServer).also { it.begin() }
++            //tambahkan entri "Mabar Hotspot" ke daftar server game
++            ServersDat.ensureMabarEntry(gameDir, loadIcon(context.applicationContext))
++        }.onFailure { e ->
++            Logger.error(TAG, "Failed to start Mabar LAN", e)
++        }
++    }
++
++    @Synchronized
++    fun stop() {
++        session?.close()
++        session = null
++        _state.value = State()
++    }
++
++    private fun loadIcon(context: Context): ByteArray =
++        context.assets.open("mabar/wifi_icon.png").use { it.readBytes() }
++
++    // ---------------------------------------------------------------------------------------
++    // Sesi
++    // ---------------------------------------------------------------------------------------
++
++    private class Session(
++        val context: Context,
++        val gameDir: File,
++        val account: MabarAccount,
++        val skinServer: OfflineSkinServer?
++    ) : Closeable {
++        @Volatile
++        var alive = true
++
++        private val closeables = CopyOnWriteArrayList<Closeable>()
++        private val pool = Executors.newCachedThreadPool { r ->
++            Thread(r, "MabarLan").apply { isDaemon = true }
++        }
++
++        private val hosts = ConcurrentHashMap<String, Seen<HostInfo>>()
++        @Volatile private var ownLan: Seen<Pair<Int, String>>? = null
++        @Volatile private var pingMs = -1
++        private val activeLinks = AtomicInteger(0)
++
++        /** HP lain yang pernah mengirim siaran Mabar (ip -> waktu). Dipakai untuk kirim langsung (unicast). */
++        private val peers = ConcurrentHashMap<String, Long>()
++        private val scanMisses = ConcurrentHashMap<Int, Long>()
++
++        /** "nama" -> "skinHash/capeHash" yang sudah disinkronkan */
++        private val syncedPlayers = ConcurrentHashMap<String, String>()
++
++        private var multicastLock: WifiManager.MulticastLock? = null
++        private lateinit var faviconUri: String
++
++        private class Seen<T>(val value: T, val at: Long = System.currentTimeMillis())
++
++        private lateinit var iconBytes: ByteArray
++
++        fun begin() {
++            skinServer?.unknownProfileResolver = { uuid -> resolveSkinNow(uuid) }
++            skinServer?.unknownTextureResolver = { hash -> resolveTextureNow(hash) }
++            iconBytes = context.assets.open("mabar/wifi_icon.png").use { it.readBytes() }
++            faviconUri = "data:image/png;base64," + Base64.encodeToString(iconBytes, Base64.NO_WRAP)
++
++            //[Maou] kunci multicast WAJIB dipegang sejak awal: tanpa ini banyak HP membuang siaran broadcast
++            //sehingga HP teman tidak pernah menerima IP/port host dan skin host
++            runCatching {
++                val wifi = context.getSystemService(Context.WIFI_SERVICE) as? WifiManager
++                multicastLock = wifi?.createMulticastLock("maou_mabar")?.apply {
++                    setReferenceCounted(false)
++                    acquire()
++                }
++            }.onFailure { Logger.warning(TAG, "WiFi lock unavailable", it) }
++
++            pool.execute { guarded("vanillaListener", ::vanillaListener) }
++            pool.execute { guarded("beaconSender", ::beaconSender) }
++            pool.execute { guarded("beaconReceiver", ::beaconReceiver) }
++            pool.execute { guarded("lanScanner", ::lanScanner) }
++            pool.execute { guarded("clientProxy", ::clientProxy) }
++            pool.execute { guarded("ticker", ::ticker) }
++            Logger.info(TAG, "Mabar LAN started")
++        }
++
++        override fun close() {
++            skinServer?.unknownProfileResolver = null
++            skinServer?.unknownTextureResolver = null
++            alive = false
++            closeables.forEach { runCatching { it.close() } }
++            closeables.clear()
++            runCatching { multicastLock?.takeIf { it.isHeld }?.release() }
++            runCatching { latencyLock?.takeIf { it.isHeld }?.release() }
++            pool.shutdownNow()
++            Logger.info(TAG, "Mabar LAN stopped")
++        }
++
++        private fun guarded(name: String, block: () -> Unit) {
++            try {
++                block()
++            } catch (e: Throwable) {
++                if (alive) Logger.error(TAG, "$name stopped unexpectedly", e)
++            }
++        }
++
++        private fun <T : Closeable> track(c: T): T = c.also { closeables.add(it) }
++
++        private fun sleepAlive(ms: Long) {
++            var left = ms
++            while (alive && left > 0) {
++                val step = minOf(left, 250L)
++                Thread.sleep(step)
++                left -= step
++            }
++        }
++
++        // ---- status -> UI --------------------------------------------------------------
++
++        /** Host terakhir yang pernah terlihat: dipertahankan sebentar supaya refresh daftar server tidak "kehilangan" host. */
++        @Volatile private var lastHost: Seen<HostInfo>? = null
++        @Volatile private var lastStatusJson: String? = null
++
++        private fun currentHost(): HostInfo? {
++            val now = System.currentTimeMillis()
++            hosts.entries.removeIf { now - it.value.at > HOST_TTL_MS }
++            val fresh = hosts.values.maxByOrNull { it.at }
++            if (fresh != null) {
++                lastHost = fresh
++                return fresh.value
++            }
++            return lastHost?.takeIf { now - it.at <= STICKY_HOST_MS }?.value
++        }
++
++        @Volatile private var entryKey: String? = null
++        private var latencyLock: WifiManager.WifiLock? = null
++
++        /**
++         * Mode WiFi latensi rendah HANYA di HP teman selama ada host terverifikasi (sedang mabar):
++         * mengurangi lag/jitter karena WiFi masuk mode hemat daya. Dilepas lagi begitu host hilang.
++         */
++        private fun setLowLatency(on: Boolean) {
++            runCatching {
++                if (on) {
++                    if (latencyLock?.isHeld != true) {
++                        val wifi = context.getSystemService(Context.WIFI_SERVICE) as? WifiManager
++                        val mode = if (android.os.Build.VERSION.SDK_INT >= 29) {
++                            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
++                        } else {
++                            @Suppress("DEPRECATION") WifiManager.WIFI_MODE_FULL_HIGH_PERF
++                        }
++                        latencyLock = wifi?.createWifiLock(mode, "maou_mabar_ll")?.apply {
++                            setReferenceCounted(false)
++                            acquire()
++                        }
++                    }
++                } else {
++                    latencyLock?.takeIf { it.isHeld }?.release()
++                }
++            }
++        }
++
++        /** Tulis IP:port asli host ke entri "Mabar Hotspot" di servers.dat (hanya saat host berubah). */
++        private fun syncServerEntry(host: HostInfo?) {
++            val key = host?.let { "${it.ip}:${it.port}" }
++            if (key == entryKey) return
++            entryKey = key
++            pool.execute {
++                runCatching { ServersDat.ensureMabarEntry(gameDir, iconBytes, host?.ip, host?.port) }
++                    .onFailure { Logger.warning(TAG, "Failed to update servers.dat entry", it) }
++            }
++        }
++
++        private fun ticker() {
++            while (alive) {
++                val now = System.currentTimeMillis()
++                val lan = ownLan?.takeIf { now - it.at <= LAN_TTL_MS }?.value?.first
++                val host = currentHost()
++                if (host == null) pingMs = -1
++                syncServerEntry(host)
++                setLowLatency(host != null)
++                val ips = localIpv4()
++                _state.value = State(
++                    running = true,
++                    localIps = ips,
++                    bestIp = ips.firstOrNull()?.address,
++                    ownLanPort = lan,
++                    host = host,
++                    pingMs = pingMs,
++                    activeLinks = activeLinks.get(),
++                    syncedPlayers = syncedPlayers.keys.sorted()
++                )
++                sleepAlive(3000)
++            }
++        }
++
++        // ---- 1. dengar pengumuman LAN bawaan game (sisi host) ----------------------------
++
++        private fun multicastInterfaces(): List<NetworkInterface> = runCatching {
++            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
++                .filter { it.isUp && !it.isLoopback && it.supportsMulticast() }
++        }.getOrDefault(emptyList())
++
++        private fun vanillaListener() {
++            val group = InetAddress.getByName(VANILLA_MULTICAST)
++            val sock = track(MulticastSocket(null).apply {
++                reuseAddress = true
++                bind(InetSocketAddress(VANILLA_PORT))
++                soTimeout = 1500
++            })
++            val joined = HashSet<String>()
++            var lastJoinCheck = 0L
++            val buf = ByteArray(1024)
++            while (alive) {
++                val now = System.currentTimeMillis()
++                if (now - lastJoinCheck > 4000) {
++                    lastJoinCheck = now
++                    //hotspot bisa dinyalakan kapan saja, jadi cek antarmuka baru berkala
++                    multicastInterfaces().forEach { nif ->
++                        if (joined.add(nif.name)) {
++                            runCatching { sock.joinGroup(InetSocketAddress(group, 0), nif) }
++                        }
++                    }
++                }
++                val packet = DatagramPacket(buf, buf.size)
++                try {
++                    sock.receive(packet)
++                } catch (_: SocketTimeoutException) {
++                    continue
++                }
++                val text = String(packet.data, 0, packet.length, Charsets.UTF_8)
++                val port = Regex("\\[AD](\\d+)\\[/AD]").find(text)?.groupValues?.get(1)?.toIntOrNull()
++                    ?: continue
++                val motd = Regex("\\[MOTD](.*?)\\[/MOTD]").find(text)?.groupValues?.get(1).orEmpty()
++                val src = packet.address.hostAddress ?: continue
++                if (isLocal(src)) ownLan = Seen(port to motd)
++            }
++        }
++
++        @Volatile private var localCache: Set<String> = emptySet()
++        @Volatile private var localCacheAt = 0L
++
++        private fun isLocal(ip: String): Boolean {
++            if (ip == "127.0.0.1") return true
++            val now = System.currentTimeMillis()
++            if (now - localCacheAt > 5000) {
++                localCache = allLocalIpv4().map { it.address }.toSet()
++                localCacheAt = now
++            }
++            return ip in localCache
++        }
++
++        // ---- 2. siaran sendiri (host + skin) --------------------------------------------
++
++        private fun ipToInetAddress(v: Int): InetAddress =
++            InetAddress.getByAddress(
++                byteArrayOf((v ushr 24).toByte(), (v ushr 16).toByte(), (v ushr 8).toByte(), v.toByte())
++            )
++
++        private class Route(val local: Inet4Address, val bc: InetAddress, val prefix: Int) {
++            fun contains(ip: InetAddress): Boolean {
++                if (ip !is Inet4Address) return false
++                val mask = if (prefix <= 0) 0 else -1 shl (32 - prefix)
++                return (ipInt(ip) and mask) == (ipInt(local) and mask)
++            }
++        }
++
++        /** Antarmuka jaringan lokal aktif (hotspot/WiFi), tanpa jaringan seluler. */
++        private fun routes(): List<Route> = runCatching {
++            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
++                .filter { it.isUp && !it.isLoopback && !isMobileIface(it.name) }
++                .flatMap { nif ->
++                    nif.interfaceAddresses.mapNotNull { ia ->
++                        val local = ia.address as? Inet4Address ?: return@mapNotNull null
++                        val prefix = ia.networkPrefixLength.toInt()
++                        val bc = ia.broadcast ?: run {
++                            if (prefix !in 8..30) return@run null
++                            ipToInetAddress(ipInt(local) or (-1 shl (32 - prefix)).inv())
++                        } ?: return@mapNotNull null
++                        Route(local, bc, prefix)
++                    }
++                }.distinctBy { it.local.hostAddress }
++        }.getOrDefault(emptyList())
++
++        @Volatile private var routeCache: List<Route> = emptyList()
++        @Volatile private var routeCacheAt = 0L
++
++        private fun routesCached(): List<Route> {
++            val now = System.currentTimeMillis()
++            if (now - routeCacheAt > 3000) {
++                routeCache = routes()
++                routeCacheAt = now
++            }
++            return routeCache
++        }
++
++        /** IP HP ini yang satu subnet dengan [target]: inilah alamat yang benar untuk diumumkan ke target. */
++        private fun advertisedFor(target: InetAddress, rs: List<Route>): String? =
++            (rs.firstOrNull { it.contains(target) } ?: rs.firstOrNull())?.local?.hostAddress
++
++        /** Alamat gateway: HP yang memberi hotspot hampir selalu berada di sini. */
++        private fun gatewayTargets(): List<InetAddress> {
++            val out = LinkedHashSet<String>()
++            runCatching {
++                val wifi = context.getSystemService(Context.WIFI_SERVICE) as? WifiManager
++                @Suppress("DEPRECATION")
++                val gw = wifi?.dhcpInfo?.gateway ?: 0
++                if (gw != 0) {
++                    out += "${gw and 255}.${(gw shr 8) and 255}.${(gw shr 16) and 255}.${(gw shr 24) and 255}"
++                }
++            }
++            //tebakan umum: x.y.z.1 di setiap subnet (hotspot Android biasanya 192.168.43.1 / 192.168.x.1)
++            localIpv4().forEach { l ->
++                val p = l.address.split('.')
++                if (p.size == 4 && p[3] != "1") out += "${p[0]}.${p[1]}.${p[2]}.1"
++            }
++            return out.mapNotNull { runCatching { InetAddress.getByName(it) }.getOrNull() }
++        }
++
++        private fun clean(s: String) = s.replace('|', '/').replace('\n', ' ').take(60)
++
++        private val hashCache = ConcurrentHashMap<String, Pair<Long, String>>()
++
++        private fun hashOf(f: File): String {
++            val stamp = f.lastModified() xor f.length()
++            hashCache[f.absolutePath]?.let { if (it.first == stamp) return it.second }
++            val h = DigestUtils.digestToString("SHA-256", f.readBytes())
++            hashCache[f.absolutePath] = stamp to h
++            return h
++        }
++
++        /**
++         * Paket siaran. [adv] = IP HP ini di jaringan tujuan; ikut dikirim di dalam paket supaya penerima
++         * tidak perlu menebak dari alamat pengirim (yang bisa salah bila HP punya beberapa jaringan).
++         */
++        private fun buildPayloads(adv: String?): List<ByteArray> {
++            val payloads = ArrayList<ByteArray>(2)
++            val tail = if (adv != null) "|$adv" else ""
++            val lan = ownLan?.takeIf { System.currentTimeMillis() - it.at <= LAN_TTL_MS }?.value
++            var skinInfo: String? = null // name|uuid|model|sh|ch|ygg
++            val skinServer = skinServer
++            if (skinServer != null) {
++                val ygg = skinServer.getPort()
++                val skinF = account.skinFile.takeIf { it.exists() }
++                val capeF = account.capeFile.takeIf { it.exists() }
++                if (ygg != null && (skinF != null || capeF != null)) {
++                    val sh = skinF?.let { hashOf(it) } ?: ""
++                    val ch = capeF?.let { hashOf(it) } ?: ""
++                    val model = if (account.slim) "slim" else "wide"
++                    skinInfo = "${clean(account.username)}|${account.profileId.replace("-", "")}|$model|$sh|$ch|$ygg"
++                    payloads += "MAOU1|SKIN|$skinInfo$tail".toByteArray()
++                }
++            }
++            if (lan != null) {
++                //[Maou] info skin host ikut di paket HOST: skin host ditarik HP teman tepat saat host terverifikasi,
++                //sebelum teman masuk dunia (game menyimpan hasil pencarian skin yang gagal, jadi harus sudah siap)
++                val skinTail = if (skinInfo != null) "|$skinInfo" else ""
++                payloads += "MAOU1|HOST|${clean(lan.second.ifBlank { account.username })}|${lan.first}|${adv ?: ""}$skinTail".toByteArray()
++            }
++            return payloads
++        }
++
++        private fun sendTo(sock: DatagramSocket, target: InetAddress, payloads: List<ByteArray>) {
++            for (p in payloads) {
++                runCatching { sock.send(DatagramPacket(p, p.size, target, BEACON_PORT)) }
++            }
++        }
++
++        private fun beaconSender() {
++            val sock = track(DatagramSocket().apply { broadcast = true })
++            val limited = InetAddress.getByName("255.255.255.255")
++            val ask = "MAOU1|ASK|-|0".toByteArray()
++            val routeSocks = HashMap<String, Pair<DatagramSocket, Long>>()
++            while (alive) {
++                val rs = routes()
++                routeCache = rs; routeCacheAt = System.currentTimeMillis()
++                val now = System.currentTimeMillis()
++                peers.entries.removeIf { now - it.value > PEER_TTL_MS }
++
++                //1) broadcast lewat SETIAP antarmuka lokal; socket diikat ke alamat antarmuka supaya keluar lewat hotspot/WiFi yang benar,
++                //   dan IP antarmuka itu ikut ditulis di paket
++                val live = rs.mapNotNull { it.local.hostAddress }.toSet()
++                routeSocks.entries.removeIf { (k, v) ->
++                    val stale = k !in live || now - v.second > 60_000L
++                    if (stale) runCatching { v.first.close() }
++                    stale
++                }
++                for (r in rs) {
++                    val key = r.local.hostAddress ?: continue
++                    val all = buildPayloads(key) + ask
++                    runCatching {
++                        //socket per antarmuka dipakai ulang (bukan dibuat ulang tiap siklus) supaya hemat CPU/baterai
++                        val s = routeSocks.getOrPut(key) {
++                            track(DatagramSocket(0, r.local).apply { broadcast = true }) to now
++                        }.first
++                        sendTo(s, r.bc, all)
++                        sendTo(s, limited, all)
++                    }
++                }
++
++                //2) kirim langsung (unicast) ke gateway (pemberi hotspot) dan HP yang pernah terdengar:
++                //   tetap jalan walau hotspot/router memblokir broadcast
++                gatewayTargets().forEach { sendTo(sock, it, buildPayloads(advertisedFor(it, rs)) + ask) }
++                peers.keys.forEach { ip ->
++                    runCatching {
++                        val t = InetAddress.getByName(ip)
++                        sendTo(sock, t, buildPayloads(advertisedFor(t, rs)))
++                    }
++                }
++                val active = buildPayloads(null).isNotEmpty() || peers.isNotEmpty()
++                //hemat baterai: siaran lebih jarang; saat sepi (belum ada teman/host) lebih jarang lagi
++                sleepAlive(if (active) 4000 else 8000)
++            }
++        }
++
++        // ---- 3. terima siaran HP lain ---------------------------------------------------
++
++        /** Alamat calon host/pemilik skin: IP yang diumumkan HP itu sendiri lebih dulu, lalu alamat pengirim paket. */
++        private fun candidates(src: String, advertised: String?): List<String> {
++            val out = LinkedHashSet<String>()
++            if (advertised != null && Regex("\\d{1,3}(\\.\\d{1,3}){3}").matches(advertised) &&
++                !isLocal(advertised) && isPrivateLan(advertised)
++            ) {
++                val addr = runCatching { InetAddress.getByName(advertised) }.getOrNull()
++                //hanya dipercaya bila satu subnet dengan salah satu jaringan HP ini
++                if (addr != null && routesCached().any { it.contains(addr) }) out += advertised
++            }
++            out += src
++            return out.toList()
++        }
++
++        private val verifiedAt = ConcurrentHashMap<String, Long>()
++        private val verifying = ConcurrentHashMap.newKeySet<String>()
++
++        private fun probeTcp(ip: String, port: Int): Boolean = runCatching {
++            Socket().use { it.connect(InetSocketAddress(ip, port), 1500); true }
++        }.getOrDefault(false)
++
++        /**
++         * Host hanya dipakai (ditampilkan & dihubungi) setelah IP:port-nya terbukti bisa disambungi.
++         * Jadi IP/port yang muncul pasti nyata, bukan tebakan dari paket.
++         */
++        private fun acceptHost(cands: List<String>, port: Int, motd: String) {
++            val now = System.currentTimeMillis()
++            for (ip in cands) {
++                val last = verifiedAt["$ip:$port"] ?: continue
++                if (now - last < VERIFY_TTL_MS) {
++                    hosts[ip] = Seen(HostInfo(ip, port, motd))
++                    return
++                }
++            }
++            val key = "${cands.first()}:$port"
++            if (!verifying.add(key)) return
++            pool.execute {
++                try {
++                    var ok = false
++                    for (ip in cands) {
++                        if (!alive) return@execute
++                        if (probeTcp(ip, port)) {
++                            verifiedAt["$ip:$port"] = System.currentTimeMillis()
++                            hosts[ip] = Seen(HostInfo(ip, port, motd))
++                            ok = true
++                            break
++                        }
++                    }
++                    if (!ok) {
++                        cands.forEach { ip ->
++                            verifiedAt.remove("$ip:$port")
++                            if (hosts[ip]?.value?.port == port) hosts.remove(ip)
++                            if (lastHost?.value?.let { it.ip == ip && it.port == port } == true) lastHost = null
++                        }
++                    }
++                } finally {
++                    verifying.remove(key)
++                }
++            }
++        }
++
++        private fun beaconReceiver() {
++            val sock = track(DatagramSocket(null as java.net.SocketAddress?).apply {
++                reuseAddress = true
++                broadcast = true
++                bind(InetSocketAddress(BEACON_PORT))
++                soTimeout = 1500
++            })
++            val buf = ByteArray(1024)
++            while (alive) {
++                val packet = DatagramPacket(buf, buf.size)
++                try {
++                    sock.receive(packet)
++                } catch (_: SocketTimeoutException) {
++                    continue
++                }
++                val src = packet.address.hostAddress ?: continue
++                if (isLocal(src)) continue
++                val parts = String(packet.data, 0, packet.length, Charsets.UTF_8).split('|')
++                if (parts.size < 4 || parts[0] != "MAOU1") continue
++                peers[src] = System.currentTimeMillis()
++                when (parts[1]) {
++                    "HOST" -> {
++                        val port = parts[3].toIntOrNull() ?: continue
++                        val cands = candidates(src, parts.getOrNull(4)?.takeIf { it.isNotEmpty() })
++                        acceptHost(cands, port, parts[2])
++                        //paket HOST baru: MAOU1|HOST|motd|port|ip|name|uuid|model|sh|ch|ygg
++                        if (parts.size >= 11) {
++                            onSkinBeacon(cands, listOf("MAOU1", "SKIN", parts[5], parts[6], parts[7], parts[8], parts[9], parts[10]))
++                        }
++                    }
++                    "SKIN" -> if (parts.size >= 8) onSkinBeacon(candidates(src, parts.getOrNull(8)), parts)
++                    //ada HP yang mencari: jawab langsung ke pengirimnya
++                    "ASK" -> {
++                        val reply = buildPayloads(advertisedFor(packet.address, routesCached()))
++                        if (reply.isNotEmpty()) runCatching {
++                            for (p in reply) sock.send(DatagramPacket(p, p.size, packet.address, BEACON_PORT))
++                        }
++                    }
++                }
++            }
++        }
++
++        // ---- 3b. cari dunia LAN sendiri tanpa bergantung pada multicast ------------------
++        //
++        // Banyak HP tidak meneruskan pengumuman multicast bawaan game ke antarmuka hotspot
++        // (terutama HP pemberi hotspot tanpa internet WiFi), dan Android 10+ melarang membaca
++        // /proc/net/tcp. Maka port dunia LAN dicari dari 3 sumber, lalu SELALU diverifikasi
++        // dengan menanyakan status Minecraft-nya langsung: (1) pengumuman multicast, (2) log game
++        // ("Started serving on PORT"), (3) daftar port listen aplikasi ini bila bisa dibaca.
++
++        private fun listeningPorts(): Set<Int> {
++            val uid = Process.myUid().toString()
++            val out = HashSet<Int>()
++            for (path in arrayOf("/proc/net/tcp", "/proc/net/tcp6")) {
++                runCatching {
++                    File(path).useLines { lines ->
++                        lines.drop(1).forEach { line ->
++                            val c = line.trim().split(Regex("\\s+"))
++                            if (c.size > 7 && c[3] == "0A" && c[7] == uid) {
++                                val port = c[1].substringAfterLast(':').toIntOrNull(16)
++                                if (port != null && port >= 1024) out += port
++                            }
++                        }
++                    }
++                }
++            }
++            return out
++        }
++
++        /** Port terakhir yang dicatat game di log saat dunia dibuka ke LAN. */
++        private fun logPort(): Int? = runCatching {
++            val f = File(gameDir, "logs/latest.log")
++            if (!f.isFile) return@runCatching null
++            RandomAccessFile(f, "r").use { raf ->
++                val len = raf.length()
++                val start = maxOf(0L, len - 32 * 1024L)
++                raf.seek(start)
++                val bytes = ByteArray((len - start).toInt())
++                raf.readFully(bytes)
++                Regex("(?:Started serving on|Local game hosted on port)\\s+(\\d{4,5})")
++                    .findAll(String(bytes, Charsets.UTF_8)).lastOrNull()
++                    ?.groupValues?.get(1)?.toIntOrNull()
++            }
++        }.getOrNull()
++
++        private fun probeMinecraft(port: Int): String? = runCatching {
++            Socket().use { s ->
++                s.connect(InetSocketAddress("127.0.0.1", port), 400)
++                s.soTimeout = 1200
++                val hs = ByteArrayOutputStream().apply {
++                    writeVarInt(this, 0)       // id handshake
++                    writeVarInt(this, 767)     // versi protokol (tidak dipakai server untuk status)
++                    write(stringPayload("localhost"))
++                    write(byteArrayOf((port shr 8).toByte(), port.toByte()))
++                    writeVarInt(this, 1)       // next state = status
++                }.toByteArray()
++                val out = s.getOutputStream()
++                val framedHs = ByteArrayOutputStream().apply { writeVarInt(this, hs.size); write(hs) }.toByteArray()
++                out.write(framedHs)
++                out.write(byteArrayOf(1, 0)) // status request
++                out.flush()
++                val resp = ByteArrayInputStream(readPacket(s.getInputStream()))
++                readVarInt(resp)
++                if (readVarInt(resp) != 0) return@use null
++                val json = JSONObject(readString(resp))
++                if (!json.has("players") || !json.has("version")) return@use null
++                plainText(json.opt("description")).replace(Regex("§."), "").trim()
++            }
++        }.getOrNull()
++
++        private fun lanScanner() {
++            while (alive) {
++                val now = System.currentTimeMillis()
++                scanMisses.entries.removeIf { now - it.value > 8_000L }
++
++                //dunia LAN yang sedang diumumkan harus benar-benar masih hidup, kalau sudah ditutup berhenti diumumkan
++                val cur = ownLan
++                if (cur != null && now - cur.at > 5_000L) {
++                    val motd = probeMinecraft(cur.value.first)
++                    ownLan = if (motd != null) Seen(cur.value.first to motd) else null
++                }
++                if (ownLan == null) {
++                    val skip = HashSet<Int>().apply {
++                        add(PROXY_PORT)
++                        skinServer?.getPort()?.let { add(it) }
++                    }
++                    val cands = LinkedHashSet<Int>()
++                    logPort()?.let { cands += it }
++                    cands += listeningPorts()
++                    for (port in cands) {
++                        if (!alive) break
++                        if (port in skip || scanMisses.containsKey(port)) continue
++                        val motd = probeMinecraft(port)
++                        if (motd != null) {
++                            ownLan = Seen(port to motd)
++                            break
++                        } else {
++                            scanMisses[port] = now
++                        }
++                    }
++                }
++                //hemat baterai: sudah ketemu -> cek ulang jarang; belum ketemu -> cari tiap 6 detik
++                sleepAlive(if (ownLan != null) 5000 else 6000)
++            }
++        }
++
++        /** Siaran skin terakhir tiap pemain: nama(kecil) -> (alamat calon, isi paket). Dipakai untuk unduh sesuai permintaan. */
++        private val skinBeacons = ConcurrentHashMap<String, Pair<List<String>, List<String>>>()
++        private val skinLocks = ConcurrentHashMap<String, Any>()
++
++        private fun offlineUuidOf(name: String): String =
++            java.util.UUID.nameUUIDFromBytes("OfflinePlayer:$name".toByteArray(Charsets.UTF_8)).toString().replace("-", "")
++
++        private fun onSkinBeacon(cands: List<String>, p: List<String>) {
++            val name = p[2]
++            if (skinServer == null) return
++            if (name.equals(account.username, ignoreCase = true)) return
++            if (p[7].toIntOrNull() == null) return
++            skinBeacons[name.lowercase()] = cands to p
++            if (syncedPlayers[name] == "${p[5]}/${p[6]}") return
++            pool.execute { syncSkin(cands, p) }
++        }
++
++        /** Dipanggil server skin saat game menanyakan UUID yang belum ada: unduh sekarang juga (maks ±5 dtk). */
++        private fun resolveSkinNow(uuid: String) {
++            val hit = skinBeacons.values.firstOrNull { (_, p) ->
++                p[3].replace("-", "").equals(uuid, ignoreCase = true) || offlineUuidOf(p[2]).equals(uuid, ignoreCase = true)
++            } ?: return
++            syncSkin(hit.first, hit.second)
++        }
++
++        private fun resolveTextureNow(hash: String) {
++            val hit = skinBeacons.values.firstOrNull { (_, p) -> p[5] == hash || p[6] == hash } ?: return
++            syncSkin(hit.first, hit.second)
++        }
++
++        /** @return true jika skin/cape pemain itu sudah tersedia di server skin lokal. */
++        private fun syncSkin(cands: List<String>, p: List<String>): Boolean {
++            val server = skinServer ?: return false
++            val name = p[2]
++            val uuid = p[3]
++            val slim = p[4] == "slim"
++            val skinHash = p[5]
++            val capeHash = p[6]
++            val port = p[7].toIntOrNull() ?: return false
++            val version = "$skinHash/$capeHash"
++            synchronized(skinLocks.getOrPut(name.lowercase()) { Any() }) {
++                if (syncedPlayers[name] == version) return true
++                try {
++                    var skin: ByteArray? = null
++                    var cape: ByteArray? = null
++                    var from = cands.first()
++                    //coba setiap alamat calon sampai ada yang berhasil
++                    for (ip in cands) {
++                        val s = if (skinHash.isNotEmpty()) runCatching { download(ip, port, skinHash) }.getOrNull() else null
++                        val c = if (capeHash.isNotEmpty()) runCatching { download(ip, port, capeHash) }.getOrNull() else null
++                        if (s != null || c != null) {
++                            skin = s; cape = c; from = ip
++                            break
++                        }
++                    }
++                    if (skin == null && cape == null) {
++                        Logger.warning(TAG, "Skin of $name not reachable at ${cands.joinToString()}:$port")
++                        return false
++                    }
++                    server.addRemoteCharacter(
++                        name = name,
++                        uuid = uuid,
++                        slim = slim,
++                        skinBytes = skin,
++                        capeBytes = cape
++                    )
++                    syncedPlayers[name] = version
++                    Logger.info(TAG, "Synced skin/cape of $name from $from")
++                    return true
++                } catch (e: Throwable) {
++                    Logger.warning(TAG, "Failed to sync skin of $name", e)
++                    return false
++                }
++            }
++        }
++
++        private fun download(ip: String, port: Int, hash: String): ByteArray? {
++            val conn = URL("http://$ip:$port/textures/$hash").openConnection() as HttpURLConnection
++            conn.connectTimeout = 4000
++            conn.readTimeout = 4000
++            return try {
++                if (conn.responseCode != 200) return null
++                val bytes = conn.inputStream.use { it.readLimited(MAX_TEXTURE_BYTES) }
++                //verifikasi isi sama dengan hash yang diumumkan
++                if (DigestUtils.digestToString("SHA-256", bytes) == hash) bytes else null
++            } finally {
++                conn.disconnect()
++            }
++        }
++
++        private fun InputStream.readLimited(limit: Int): ByteArray {
++            val out = ByteArrayOutputStream()
++            val buf = ByteArray(8192)
++            while (true) {
++                val n = read(buf)
++                if (n < 0) break
++                out.write(buf, 0, n)
++                if (out.size() > limit) throw IOException("texture too large")
++            }
++            return out.toByteArray()
++        }
++
++        // ---- 4. proxy lokal untuk entri "Mabar Hotspot" ----------------------------------
++
++        private fun clientProxy() {
++            val server = try {
++                track(ServerSocket().apply {
++                    reuseAddress = true
++                    bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), PROXY_PORT), 8)
++                })
++            } catch (e: IOException) {
++                Logger.warning(TAG, "Proxy port $PROXY_PORT unavailable", e)
++                return
++            }
++            while (alive) {
++                val client = try {
++                    server.accept()
++                } catch (_: IOException) {
++                    break
++                }
++                pool.execute {
++                    try {
++                        handleClient(client)
++                    } catch (_: Throwable) {
++                        // sambungan putus: normal
++                    } finally {
++                        runCatching { client.close() }
++                    }
++                }
++            }
++        }
++
++        private fun handleClient(client: Socket) {
++            client.tcpNoDelay = true
++            client.soTimeout = 8000
++            val cin = client.getInputStream()
++            val cout = client.getOutputStream()
++
++            val handshake = readPacket(cin)
++            val hs = ByteArrayInputStream(handshake)
++            readVarInt(hs) // panjang
++            if (readVarInt(hs) != 0) return
++            val protocol = readVarInt(hs)
++            val addrLen = readVarInt(hs)
++            hs.skip(addrLen.toLong())
++            hs.skip(2) // port
++            val nextState = readVarInt(hs)
++
++            var host = currentHost()
++            if (host == null && nextState != 1) {
++                //beri waktu sebentar: siaran host bisa baru tiba
++                var waited = 0
++                while (host == null && waited < 5000 && alive) {
++                    Thread.sleep(250); waited += 250
++                    host = currentHost()
++                }
++            }
++            when (nextState) {
++                1 -> handleStatus(client, cin, cout, handshake, protocol, host)
++                else -> handleLogin(client, cin, cout, handshake, host)
++            }
++        }
++
++        private fun connect(host: HostInfo, timeout: Int): Socket =
++            Socket().apply {
++                tcpNoDelay = true
++                connect(InetSocketAddress(host.ip, host.port), timeout)
++                soTimeout = timeout
++            }
++
++        private fun handleStatus(
++            client: Socket,
++            cin: InputStream,
++            cout: OutputStream,
++            handshake: ByteArray,
++            protocol: Int,
++            host: HostInfo?
++        ) {
++            val request = readPacket(cin)
++            var upstream: Socket? = null
++            var json: String? = null
++            if (host != null) {
++                try {
++                    upstream = connect(host, 2500)
++                    upstream.getOutputStream().apply { write(handshake); write(request); flush() }
++                    val resp = ByteArrayInputStream(readPacket(upstream.getInputStream()))
++                    readVarInt(resp); readVarInt(resp) // len, id
++                    json = patchStatus(readString(resp), host)
++                    lastStatusJson = json
++                } catch (_: Throwable) {
++                    upstream?.let { runCatching { it.close() } }
++                    upstream = null
++                }
++            }
++            //host tidak menjawab saat refresh: tampilkan status terakhir (ping tetap ada), jangan jadi "mencari"
++            if (json == null && host != null) json = lastStatusJson
++            if (json == null) json = placeholderStatus(protocol, host)
++
++            cout.write(statusPacket(json)); cout.flush()
++
++            //ping/pong: teruskan ke host supaya garis sinyal di daftar server = latensi WiFi asli
++            val ping = try { readPacket(cin) } catch (_: Throwable) { null }
++            if (ping != null) {
++                var replied = false
++                if (upstream != null) {
++                    try {
++                        val t0 = System.nanoTime()
++                        upstream.getOutputStream().apply { write(ping); flush() }
++                        val pong = readPacket(upstream.getInputStream())
++                        pingMs = ((System.nanoTime() - t0) / 1_000_000L).toInt().coerceAtLeast(1)
++                        cout.write(pong); cout.flush()
++                        replied = true
++                    } catch (_: Throwable) {
++                    }
++                }
++                if (!replied) {
++                    cout.write(ping); cout.flush()
++                }
++            }
++            upstream?.let { runCatching { it.close() } }
++        }
++
++        private fun handleLogin(
++            client: Socket,
++            cin: InputStream,
++            cout: OutputStream,
++            handshake: ByteArray,
++            host: HostInfo?
++        ) {
++            if (host == null) {
++                val msg = JSONObject().put(
++                    "text",
++                    "Host Mabar belum terdeteksi.\n1) HP host: buka dunia lalu Esc > Open to LAN.\n2) Kedua HP harus tersambung ke hotspot/WiFi yang sama.\n3) Kedua HP harus membuka game dengan Maou Launcher (Mabar aktif)."
++                ).toString()
++                cout.write(loginDisconnectPacket(msg)); cout.flush()
++                return
++            }
++            var upstreamTry: Socket? = null
++            var lastErr: IOException? = null
++            for (attempt in 0 until 4) {
++                try {
++                    upstreamTry = connect(host, 3000)
++                    break
++                } catch (e: IOException) {
++                    lastErr = e
++                    Thread.sleep(600)
++                }
++            }
++            val upstream = if (upstreamTry != null) upstreamTry else run {
++                val msg = JSONObject().put("text", "Tidak bisa tersambung ke host ${host.ip}:${host.port}").toString()
++                cout.write(loginDisconnectPacket(msg)); cout.flush()
++                return
++            }
++            activeLinks.incrementAndGet()
++            try {
++                client.soTimeout = 0
++                upstream.soTimeout = 0
++                val uout = upstream.getOutputStream()
++                uout.write(handshake); uout.flush()
++                val t = Thread({ pipe(upstream.getInputStream(), cout, client, upstream) }, "MabarPipe").apply {
++                    isDaemon = true
++                    start()
++                }
++                pipe(cin, uout, client, upstream)
++                t.join(1000)
++            } finally {
++                activeLinks.decrementAndGet()
++                runCatching { upstream.close() }
++            }
++        }
++
++        private fun pipe(input: InputStream, output: OutputStream, a: Socket, b: Socket) {
++            val buf = ByteArray(16 * 1024)
++            try {
++                while (true) {
++                    val n = input.read(buf)
++                    if (n < 0) break
++                    output.write(buf, 0, n)
++                    output.flush()
++                }
++            } catch (_: IOException) {
++            } finally {
++                runCatching { a.close() }
++                runCatching { b.close() }
++            }
++        }
++
++        // ---- JSON status ---------------------------------------------------------------
++
++        private fun plainText(node: Any?): String = when (node) {
++            is String -> node
++            is JSONObject -> {
++                val sb = StringBuilder(node.optString("text", ""))
++                node.optJSONArray("extra")?.let { arr ->
++                    for (i in 0 until arr.length()) sb.append(plainText(arr.opt(i)))
++                }
++                sb.toString()
++            }
++            else -> ""
++        }
++
++        private fun patchStatus(json: String, host: HostInfo): String {
++            val obj = JSONObject(json)
++            val motd = plainText(obj.opt("description")).replace(Regex("§."), "").trim()
++            obj.put(
++                "description",
++                JSONObject().put("text", "§b[Hotspot] §f${motd.ifEmpty { host.motd }}\n§7${host.ip}:${host.port}")
++            )
++            obj.put("favicon", faviconUri)
++            return obj.toString()
++        }
++
++        private fun placeholderStatus(protocol: Int, host: HostInfo?): String {
++            val text = if (host == null) {
++                "§b[Hotspot] §7Mencari host Mabar...\n§8Host: Esc > Open to LAN, teman: sambung ke hotspot"
++            } else {
++                "§b[Hotspot] §e${host.motd} §7(host tidak merespons)"
++            }
++            return JSONObject()
++                .put("version", JSONObject().put("name", "Mabar").put("protocol", protocol))
++                .put("players", JSONObject().put("max", VANILLA_MAX_PLAYERS).put("online", 0))
++                .put("description", JSONObject().put("text", text))
++                .put("favicon", faviconUri)
++                .toString()
++        }
++    }
++
++    // ---------------------------------------------------------------------------------------
++    // Protokol Minecraft (VarInt + paket)
++    // ---------------------------------------------------------------------------------------
++
++    private fun ipInt(a: InetAddress): Int {
++        val b = a.address
++        return ((b[0].toInt() and 255) shl 24) or ((b[1].toInt() and 255) shl 16) or
++            ((b[2].toInt() and 255) shl 8) or (b[3].toInt() and 255)
++    }
++
++    private fun readVarInt(input: InputStream): Int {
++        var result = 0
++        var shift = 0
++        while (true) {
++            val b = input.read()
++            if (b < 0) throw EOFException()
++            result = result or ((b and 0x7F) shl shift)
++            if (b and 0x80 == 0) return result
++            shift += 7
++            if (shift > 35) throw IOException("VarInt too long")
++        }
++    }
++
++    private fun writeVarInt(out: OutputStream, value: Int) {
++        var v = value
++        while (true) {
++            if (v and 0x7F.inv() == 0) {
++                out.write(v)
++                return
++            }
++            out.write((v and 0x7F) or 0x80)
++            v = v ushr 7
++        }
++    }
++
++    /** Baca satu paket utuh (termasuk awalan panjang) agar bisa diteruskan apa adanya. */
++    private fun readPacket(input: InputStream): ByteArray {
++        val head = ByteArrayOutputStream()
++        var len = 0
++        var shift = 0
++        while (true) {
++            val b = input.read()
++            if (b < 0) throw EOFException()
++            head.write(b)
++            len = len or ((b and 0x7F) shl shift)
++            if (b and 0x80 == 0) break
++            shift += 7
++            if (shift > 28) throw IOException("bad packet length")
++        }
++        if (len < 0 || len > 1 shl 20) throw IOException("bad packet length")
++        val body = ByteArray(len)
++        var off = 0
++        while (off < len) {
++            val n = input.read(body, off, len - off)
++            if (n < 0) throw EOFException()
++            off += n
++        }
++        return head.toByteArray() + body
++    }
++
++    private fun readString(input: InputStream): String {
++        val len = readVarInt(input)
++        val bytes = ByteArray(len)
++        var off = 0
++        while (off < len) {
++            val n = input.read(bytes, off, len - off)
++            if (n < 0) throw EOFException()
++            off += n
++        }
++        return String(bytes, Charsets.UTF_8)
++    }
++
++    private fun framed(id: Int, payload: ByteArray): ByteArray {
++        val body = ByteArrayOutputStream().apply {
++            writeVarInt(this, id)
++            write(payload)
++        }.toByteArray()
++        return ByteArrayOutputStream().apply {
++            writeVarInt(this, body.size)
++            write(body)
++        }.toByteArray()
++    }
++
++    private fun stringPayload(s: String): ByteArray {
++        val bytes = s.toByteArray(Charsets.UTF_8)
++        return ByteArrayOutputStream().apply {
++            writeVarInt(this, bytes.size)
++            write(bytes)
++        }.toByteArray()
++    }
++
++    private fun statusPacket(json: String) = framed(0x00, stringPayload(json))
++
++    /** Paket Disconnect pada fase Login (id 0x00, teks JSON) */
++    private fun loginDisconnectPacket(json: String) = framed(0x00, stringPayload(json))
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarSupport.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarSupport.kt
+new file mode 100644
+index 0000000..cd2ee54
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/MabarSupport.kt
+@@ -0,0 +1,32 @@
++package com.movtery.zalithlauncher.feature.mabar
++
++import com.movtery.zalithlauncher.feature.log.Logging
++import java.io.File
++import java.security.MessageDigest
++
++/** Data akun yang dibutuhkan Mabar (dipisah dari MinecraftAccount supaya MabarLan tidak bergantung ke kelas Java). */
++class MabarAccount(
++    val username: String,
++    val profileId: String,
++    val skinFile: File,
++    val capeFile: File,
++    val slim: Boolean
++)
++
++/** Pembungkus kecil agar kode Mabar memakai sistem log Zalith 1. */
++internal object Logger {
++    fun info(tag: String, msg: String) = Logging.i(tag, msg)
++
++    fun warning(tag: String, msg: String, e: Throwable? = null) {
++        if (e != null) Logging.w(tag, msg, e) else Logging.w(tag, msg)
++    }
++
++    fun error(tag: String, msg: String, e: Throwable? = null) {
++        if (e != null) Logging.e(tag, msg, e) else Logging.e(tag, msg)
++    }
++}
++
++internal object DigestUtils {
++    fun digestToString(algorithm: String, data: ByteArray): String =
++        MessageDigest.getInstance(algorithm).digest(data).joinToString("") { "%02x".format(it) }
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/ServersDat.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/ServersDat.kt
+new file mode 100644
+index 0000000..c4d3750
+--- /dev/null
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/feature/mabar/ServersDat.kt
+@@ -0,0 +1,159 @@
++/*
++ * Maou Launcher - Mabar Hotspot
++ * Pembaca/penulis NBT minimal untuk servers.dat (daftar server Minecraft),
++ * dipakai menambahkan entri "Mabar Hotspot" yang menunjuk ke proxy lokal.
++ */
++
++package com.movtery.zalithlauncher.feature.mabar
++
++import android.util.Base64
++import java.io.ByteArrayInputStream
++import java.io.ByteArrayOutputStream
++import java.io.DataInputStream
++import java.io.DataOutputStream
++import java.io.File
++
++private const val TAG = "ServersDat"
++
++internal object ServersDat {
++    private const val ENTRY_NAME = "Mabar Hotspot"
++    private val ENTRY_IP = "127.0.0.1:${MabarLan.PROXY_PORT}"
++
++    /** Tag NBT: [id] tipe tag, [v] nilai (lihat readPayload untuk pemetaan tipe). */
++    private class Tag(val id: Int, var v: Any?)
++
++    private class ListV(val elemId: Int, val items: MutableList<Any?>)
++
++    /**
++     * Pastikan servers.dat di [gameDir] memiliki entri Mabar Hotspot di urutan pertama.
++     * Jika file tidak bisa dibaca dengan benar, file tidak disentuh sama sekali.
++     */
++    fun ensureMabarEntry(gameDir: File, icon: ByteArray, realIp: String? = null, realPort: Int? = null) {
++        val file = File(gameDir, "servers.dat")
++        val root: LinkedHashMap<String, Tag> = if (file.isFile && file.length() > 0) {
++            runCatching { readRoot(file.readBytes()) }.getOrElse {
++                Logger.warning(TAG, "servers.dat unreadable, leaving as is", it)
++                return
++            }
++        } else {
++            LinkedHashMap()
++        }
++
++        val serversTag = root.getOrPut("servers") { Tag(9, ListV(10, mutableListOf())) }
++        @Suppress("UNCHECKED_CAST")
++        val list = (serversTag.v as? ListV)?.takeIf { it.elemId == 10 || it.items.isEmpty() } ?: return
++        if (list.items.isEmpty()) {
++            serversTag.v = ListV(10, list.items)
++        }
++
++        @Suppress("UNCHECKED_CAST")
++        val entries = list.items as MutableList<Any?>
++        //entri dikenali dari nama ATAU alamat proxy, karena alamatnya berubah menjadi IP:port asli host saat host terdeteksi
++        val existing = entries.firstOrNull { e ->
++            val m = e as? LinkedHashMap<String, Tag>
++            (m?.get("ip")?.v as? String) == ENTRY_IP || (m?.get("name")?.v as? String)?.startsWith(ENTRY_NAME) == true
++        } as? LinkedHashMap<String, Tag>
++
++        val entry = existing ?: LinkedHashMap<String, Tag>().also { entries.add(0, it) }
++        //host terdeteksi & terverifikasi -> isi otomatis IP:port aslinya (tanpa input manual); jika tidak, lewat proxy lokal
++        val real = if (realIp != null && realPort != null) "$realIp:$realPort" else null
++        entry["name"] = Tag(8, if (real != null) "$ENTRY_NAME • $real" else ENTRY_NAME)
++        entry["ip"] = Tag(8, real ?: ENTRY_IP)
++        //ikon awal (sebelum ping selesai); setelah itu game memakai favicon dari proxy
++        entry["icon"] = Tag(8, Base64.encodeToString(icon, Base64.NO_WRAP))
++        entry["acceptTextures"] = Tag(1, 1.toByte())
++
++        val bytes = writeRoot(root)
++        val tmp = File(gameDir, "servers.dat.maou_tmp")
++        gameDir.mkdirs()
++        tmp.writeBytes(bytes)
++        if (!tmp.renameTo(file)) {
++            file.writeBytes(bytes)
++            tmp.delete()
++        }
++        Logger.info(TAG, "Mabar Hotspot entry ensured in ${file.absolutePath}")
++    }
++
++    // ---- NBT ---------------------------------------------------------------------------
++
++    private fun readRoot(data: ByteArray): LinkedHashMap<String, Tag> {
++        val input = DataInputStream(ByteArrayInputStream(data))
++        require(input.readUnsignedByte() == 10) { "root is not a compound" }
++        input.readUTF()
++        @Suppress("UNCHECKED_CAST")
++        return readPayload(10, input) as LinkedHashMap<String, Tag>
++    }
++
++    private fun readPayload(id: Int, input: DataInputStream): Any? = when (id) {
++        1 -> input.readByte()
++        2 -> input.readShort()
++        3 -> input.readInt()
++        4 -> input.readLong()
++        5 -> input.readFloat()
++        6 -> input.readDouble()
++        7 -> ByteArray(input.readInt().also { require(it >= 0) }).also { input.readFully(it) }
++        8 -> input.readUTF()
++        9 -> {
++            val elem = input.readUnsignedByte()
++            val len = input.readInt()
++            require(len >= 0)
++            ListV(elem, MutableList(len) { readPayload(elem, input) })
++        }
++        10 -> {
++            val map = LinkedHashMap<String, Tag>()
++            while (true) {
++                val t = input.readUnsignedByte()
++                if (t == 0) break
++                val name = input.readUTF()
++                map[name] = Tag(t, readPayload(t, input))
++            }
++            map
++        }
++        11 -> IntArray(input.readInt().also { require(it >= 0) }).also { a ->
++            for (i in a.indices) a[i] = input.readInt()
++        }
++        12 -> LongArray(input.readInt().also { require(it >= 0) }).also { a ->
++            for (i in a.indices) a[i] = input.readLong()
++        }
++        else -> throw IllegalArgumentException("unknown NBT tag $id")
++    }
++
++    private fun writeRoot(root: Map<String, Tag>): ByteArray {
++        val bos = ByteArrayOutputStream()
++        val out = DataOutputStream(bos)
++        out.writeByte(10)
++        out.writeUTF("")
++        writePayload(10, root, out)
++        out.flush()
++        return bos.toByteArray()
++    }
++
++    @Suppress("UNCHECKED_CAST")
++    private fun writePayload(id: Int, v: Any?, out: DataOutputStream) {
++        when (id) {
++            1 -> out.writeByte((v as Byte).toInt())
++            2 -> out.writeShort((v as Short).toInt())
++            3 -> out.writeInt(v as Int)
++            4 -> out.writeLong(v as Long)
++            5 -> out.writeFloat(v as Float)
++            6 -> out.writeDouble(v as Double)
++            7 -> (v as ByteArray).let { out.writeInt(it.size); out.write(it) }
++            8 -> out.writeUTF(v as String)
++            9 -> (v as ListV).let { l ->
++                out.writeByte(if (l.items.isEmpty()) 0 else l.elemId)
++                out.writeInt(l.items.size)
++                l.items.forEach { writePayload(l.elemId, it, out) }
++            }
++            10 -> {
++                (v as Map<String, Tag>).forEach { (name, tag) ->
++                    out.writeByte(tag.id)
++                    out.writeUTF(name)
++                    writePayload(tag.id, tag.v, out)
++                }
++                out.writeByte(0)
++            }
++            11 -> (v as IntArray).let { out.writeInt(it.size); it.forEach(out::writeInt) }
++            12 -> (v as LongArray).let { out.writeInt(it.size); it.forEach(out::writeLong) }
++        }
++    }
++}
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchGame.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchGame.kt
+index a9c446b..06dad36 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchGame.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/launch/LaunchGame.kt
+@@ -10,6 +10,9 @@ import com.movtery.zalithlauncher.R
+ import com.movtery.zalithlauncher.event.single.AccountUpdateEvent
+ import com.movtery.zalithlauncher.feature.accounts.AccountType
+ import com.movtery.zalithlauncher.feature.accounts.AccountUtils
++import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
++import com.movtery.zalithlauncher.feature.mabar.MabarAccount
++import com.movtery.zalithlauncher.feature.mabar.MabarLan
+ import com.movtery.zalithlauncher.feature.accounts.AccountsManager
+ import com.movtery.zalithlauncher.feature.log.Logging
+ import com.movtery.zalithlauncher.feature.version.Version
+@@ -38,6 +41,7 @@ import net.kdt.pojavlaunch.tasks.MinecraftDownloader
+ import net.kdt.pojavlaunch.utils.JREUtils
+ import net.kdt.pojavlaunch.value.MinecraftAccount
+ import org.greenrobot.eventbus.EventBus
++import java.io.File
+ 
+ class LaunchGame {
+     companion object {
+@@ -241,11 +245,32 @@ class LaunchGame {
+                 launchClassPath
+             ).getAllArgs()
+ 
++            // Mabar: siaran LAN hotspot + sinkron skin/cape (hanya akun offline)
++            startMabar(activity, account, minecraftVersion.getGameDir())
++
+             FFmpegPlugin.discover(activity)
+ 
+             JREUtils.launchWithUtils(activity, runtime, minecraftVersion, launchArgs, customArgs)
+         }
+ 
++        private fun startMabar(activity: AppCompatActivity, account: MinecraftAccount, gameDir: File) {
++            if (!AccountUtils.isNoLoginRequired(account)) return
++            runCatching {
++                MabarLan.start(
++                    activity.applicationContext,
++                    gameDir,
++                    MabarAccount(
++                        username = account.username,
++                        profileId = account.profileId,
++                        skinFile = OfflineSkinServer.skinFileOf(account),
++                        capeFile = OfflineSkinServer.capeFileOf(account),
++                        slim = OfflineSkinServer.isSlim(account)
++                    ),
++                    OfflineSkinServer
++                )
++            }.onFailure { Logging.e("Mabar", "Gagal memulai Mabar: ${it.message}") }
++        }
++
+         private fun checkMemory(activity: AppCompatActivity) {
+             var freeDeviceMemory = Tools.getFreeDeviceMemory(activity)
+             val freeAddressSpace =
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+index 44b7f58..99fafe8 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/setting/AllSettings.kt
+@@ -189,6 +189,10 @@ class AllSettings {
+         @JvmStatic
+         val dumpShaders = BooleanSettingUnit("dump_shaders", false)
+ 
++        // Mabar (LAN lewat hotspot + sinkron skin/cape)
++        @JvmStatic
++        val mabarLan = BooleanSettingUnit("mabarLan", true)
++
+         @JvmStatic
+         val bigCoreAffinity = BooleanSettingUnit("bigCoreAffinity", false)
+ 
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
+index 6c467fd..4946a23 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/AccountFragment.kt
+@@ -130,12 +130,37 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+             target.writeBytes(bytes)
+             Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_LONG).show()
+             reloadAccounts()
++            showSkinDialog(account)
+         }.onFailure { e ->
+             Logging.e(TAG, "Failed to import skin: ${e.message}")
+             Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
+         }
+     }
+ 
++    /** Offline account that is currently choosing a custom cape */
++    private var mCapeTargetAccount: MinecraftAccount? = null
++    private val mCapePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
++        val account = mCapeTargetAccount
++        mCapeTargetAccount = null
++        if (uri == null || account == null) return@registerForActivityResult
++        val ctx = requireContext()
++        runCatching {
++            val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("cannot read file")
++            if (bytes.size > 2 * 1024 * 1024 || !OfflineSkinServer.isValidCape(bytes)) {
++                Toast.makeText(ctx, R.string.account_cape_invalid, Toast.LENGTH_LONG).show()
++                return@runCatching
++            }
++            val target = OfflineSkinServer.capeFileOf(account)
++            target.parentFile?.mkdirs()
++            target.writeBytes(bytes)
++            Toast.makeText(ctx, R.string.account_cape_saved, Toast.LENGTH_LONG).show()
++            showSkinDialog(account)
++        }.onFailure { e ->
++            Logging.e(TAG, "Failed to import cape: ${e.message}")
++            Toast.makeText(ctx, R.string.account_cape_invalid, Toast.LENGTH_LONG).show()
++        }
++    }
++
+     /**
+      * Skin dialog for an offline account: choose the arm model (auto / Steve / Alex), pick a PNG file,
+      * or remove the custom skin.
+@@ -170,7 +195,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+         }
+         var showBack = false
+         fun refreshPreview() {
+-            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack)
++            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack, OfflineSkinServer.capeFileOf(account))
+             if (bmp != null) preview.setImageBitmap(bmp) else preview.setImageDrawable(null)
+         }
+         preview.setOnClickListener { showBack = !showBack; refreshPreview() }
+@@ -179,15 +204,28 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+             refreshPreview()
+         }
+         refreshPreview()
++        val capePick = android.widget.Button(ctx).apply { setText(R.string.account_cape_pick) }
++        val capeRemove = android.widget.Button(ctx).apply { setText(R.string.account_cape_remove) }
++        val hint = android.widget.TextView(ctx).apply {
++            setText(R.string.account_skin_preview_hint)
++            setPadding(px(4), px(8), px(4), 0)
++        }
++        val right = android.widget.LinearLayout(ctx).apply {
++            orientation = android.widget.LinearLayout.VERTICAL
++            addView(group)
++            addView(capePick)
++            addView(capeRemove)
++            addView(hint)
++        }
+         val content = android.widget.LinearLayout(ctx).apply {
+             orientation = android.widget.LinearLayout.HORIZONTAL
+             gravity = android.view.Gravity.CENTER_VERTICAL
+             setPadding(px(24), px(12), px(24), px(4))
+             addView(preview)
+-            addView(group)
++            addView(right)
+         }
+ 
+-        AlertDialog.Builder(ctx)
++        val skinDialog = AlertDialog.Builder(ctx)
+             .setTitle(R.string.account_change_skin)
+             .setView(android.widget.ScrollView(ctx).apply { addView(content) })
+             .setPositiveButton(R.string.account_skin_pick_file) { _, _ ->
+@@ -204,7 +242,20 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+                 Toast.makeText(ctx, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
+                 reloadAccounts()
+             }
+-            .show()
++            .create()
++
++        capePick.setOnClickListener {
++            OfflineSkinServer.setModel(account, models[selected])
++            mCapeTargetAccount = account
++            skinDialog.dismiss()
++            mCapePicker.launch(arrayOf("image/png"))
++        }
++        capeRemove.setOnClickListener {
++            OfflineSkinServer.resetCape(account)
++            Toast.makeText(ctx, R.string.account_cape_removed, Toast.LENGTH_SHORT).show()
++            refreshPreview()
++        }
++        skinDialog.show()
+     }
+ 
+     override fun onCreateView(
+@@ -262,6 +313,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
+                         if (accountFile.exists()) FileUtils.deleteQuietly(accountFile)
+                         if (userSkinFile.exists()) FileUtils.deleteQuietly(userSkinFile)
+                         File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
++                        File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".cape.png").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
+                         reloadAccounts()
+                     }.showDialog()
+             }
+diff --git a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/ExperimentalSettingsFragment.kt b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/ExperimentalSettingsFragment.kt
+index 7bf4c18..1579628 100644
+--- a/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/ExperimentalSettingsFragment.kt
++++ b/ZalithLauncher/src/main/java/com/movtery/zalithlauncher/ui/fragment/settings/ExperimentalSettingsFragment.kt
+@@ -35,6 +35,13 @@ class ExperimentalSettingsFragment :
+             binding.dumpShaders
+         )
+ 
++        SwitchSettingsWrapper(
++            context,
++            AllSettings.mabarLan,
++            binding.mabarLanLayout,
++            binding.mabarLan
++        )
++
+         SwitchSettingsWrapper(
+             context,
+             AllSettings.bigCoreAffinity,
+diff --git a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+index b55a679..cebb081 100644
+--- a/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
++++ b/ZalithLauncher/src/main/java/net/kdt/pojavlaunch/MainActivity.java
+@@ -41,6 +41,7 @@ import com.movtery.zalithlauncher.R;
+ import com.movtery.zalithlauncher.context.ContextExecutor;
+ import com.movtery.zalithlauncher.databinding.ActivityGameBinding;
+ import com.movtery.zalithlauncher.databinding.ViewControlMenuBinding;
++import com.movtery.zalithlauncher.feature.mabar.MabarDialog;
+ import com.movtery.zalithlauncher.databinding.ViewGameMenuBinding;
+ import com.movtery.zalithlauncher.event.single.RefreshHotbarEvent;
+ import com.movtery.zalithlauncher.event.value.HotbarChangeEvent;
+@@ -578,6 +579,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             this.binding.forceClose.setOnClickListener(this);
+             this.binding.logOutput.setOnClickListener(this);
+             this.binding.sendCustomKey.setOnClickListener(this);
++            this.binding.mabarStatus.setOnClickListener(this);
+             this.binding.openMemoryInfo.setOnCheckedChangeListener(this);
+             this.binding.openMemoryInfoLayout.setOnClickListener(this);
+             this.binding.openFpsInfo.setOnCheckedChangeListener(this);
+@@ -689,6 +691,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
+             if (v == binding.forceClose) ZHTools.dialogForceClose(MainActivity.this);
+             else if (v == binding.logOutput) MainActivity.binding.mainLoggerView.toggleViewWithAnim();
+             else if (v == binding.sendCustomKey) dialogSendCustomKey();
++            else if (v == binding.mabarStatus) MabarDialog.show(MainActivity.this);
+             else if (v == binding.openMemoryInfoLayout) MenuUtils.toggleSwitchState(binding.openMemoryInfo);
+             else if (v == binding.openFpsInfoLayout) MenuUtils.toggleSwitchState(binding.openFpsInfo);
+             else if (v == binding.hideMenuButtonLayout) MenuUtils.toggleSwitchState(binding.hideMenuButton);
+diff --git a/ZalithLauncher/src/main/res/layout/settings_fragment_experimental.xml b/ZalithLauncher/src/main/res/layout/settings_fragment_experimental.xml
+index 1abf170..6bb63d1 100644
+--- a/ZalithLauncher/src/main/res/layout/settings_fragment_experimental.xml
++++ b/ZalithLauncher/src/main/res/layout/settings_fragment_experimental.xml
+@@ -98,6 +98,41 @@
+                     android:layout_centerVertical="true" />
+             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
+ 
++            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
++                android:id="@+id/mabar_lan_layout"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:background="?android:attr/selectableItemBackground"
++                android:padding="@dimen/_12sdp">
++
++                <TextView
++                    android:id="@+id/mabar_lan_title"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/mabar_lan"
++                    android:text="@string/setting_mabar_title"
++                    android:textColor="@color/black_or_white" />
++
++                <TextView
++                    android:id="@+id/mabar_lan_summary"
++                    android:layout_width="0dp"
++                    android:layout_height="wrap_content"
++                    android:layout_below="@+id/mabar_lan_title"
++                    android:layout_alignParentStart="true"
++                    android:layout_marginEnd="@dimen/_8sdp"
++                    android:layout_toStartOf="@+id/mabar_lan"
++                    android:text="@string/setting_mabar_desc" />
++
++                <Switch
++                    android:id="@+id/mabar_lan"
++                    android:layout_width="wrap_content"
++                    android:layout_height="wrap_content"
++                    android:layout_alignParentEnd="true"
++                    android:layout_centerVertical="true" />
++            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
++
+         </androidx.appcompat.widget.LinearLayoutCompat>
+ 
+         <androidx.appcompat.widget.LinearLayoutCompat
+diff --git a/ZalithLauncher/src/main/res/layout/view_game_menu.xml b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+index dc5b930..28471f2 100644
+--- a/ZalithLauncher/src/main/res/layout/view_game_menu.xml
++++ b/ZalithLauncher/src/main/res/layout/view_game_menu.xml
+@@ -74,6 +74,18 @@
+                 android:paddingHorizontal="@dimen/_8sdp"
+                 app:ripple_for_text="true"/>
+ 
++            <com.movtery.zalithlauncher.ui.view.AnimTextView
++                android:id="@+id/mabar_status"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginTop="@dimen/_8sdp"
++                android:background="@drawable/background_item"
++                android:text="@string/option_mabar"
++                android:gravity="center_horizontal"
++                android:paddingVertical="@dimen/_12sdp"
++                android:paddingHorizontal="@dimen/_8sdp"
++                app:ripple_for_text="true"/>
++
+             <View
+                 android:layout_width="match_parent"
+                 android:layout_height="@dimen/_1sdp"
+diff --git a/ZalithLauncher/src/main/res/values-in/strings.xml b/ZalithLauncher/src/main/res/values-in/strings.xml
+new file mode 100644
+index 0000000..b825fa6
+--- /dev/null
++++ b/ZalithLauncher/src/main/res/values-in/strings.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="option_mabar">Mabar Hotspot</string>
++    <string name="mabar_title">Mabar Hotspot</string>
++    <string name="mabar_close">Tutup</string>
++    <string name="mabar_copy_ip">Salin IP saya</string>
++    <string name="mabar_copied">IP %1$s disalin</string>
++    <string name="mabar_your_ip">IP HP ini: %1$s</string>
++    <string name="mabar_no_network">Jaringan lokal tidak ditemukan. Nyalakan hotspot, atau sambungkan Wi-Fi ke hotspot teman.</string>
++    <string name="mabar_status_off">Belum aktif. Aktif otomatis saat game dibuka dengan akun offline dan opsinya menyala.</string>
++    <string name="mabar_status_hosting">Dunia LAN kamu aktif di port %1$d. Teman cukup buka Multiplayer lalu pilih \"Mabar Hotspot\", tanpa ketik IP.</string>
++    <string name="mabar_status_found">Host hotspot ditemukan: %1$s:%2$d</string>
++    <string name="mabar_ping">Ping ke host: %1$d ms</string>
++    <string name="mabar_status_searching">Mencari host... Host: buka dunia, tekan Esc, lalu Open to LAN. Teman: sambungkan Wi-Fi ke hotspot host.</string>
++    <string name="mabar_status_links">Tersambung lewat Mabar: %1$d</string>
++    <string name="mabar_status_skins">Skin/cape tersinkron: %1$s</string>
++    <string name="setting_mabar_title">Mabar Hotspot</string>
++    <string name="setting_mabar_desc">Deteksi otomatis dunia LAN lewat hotspot dan sinkron skin/cape (berlaku di peluncuran berikutnya, khusus akun offline)</string>
++    <string name="account_cape_pick">Pilih cape</string>
++    <string name="account_cape_remove">Hapus cape</string>
++    <string name="account_cape_invalid">Cape tidak valid. Pilih PNG 64x32 (atau 22x17 / 46x22).</string>
++    <string name="account_cape_saved">Cape disimpan. Akan terlihat di game pada peluncuran berikutnya.</string>
++    <string name="account_cape_removed">Cape kustom dihapus.</string>
++    <string name="account_skin_preview_hint">Ketuk pratinjau untuk membalik depan/belakang</string>
++</resources>
+diff --git a/ZalithLauncher/src/main/res/values/strings.xml b/ZalithLauncher/src/main/res/values/strings.xml
+index a4b2f17..a3d141c 100644
+--- a/ZalithLauncher/src/main/res/values/strings.xml
++++ b/ZalithLauncher/src/main/res/values/strings.xml
+@@ -705,4 +705,28 @@
+     <!-- Sponsorship Related -->
+     <string name="request_sponsorship_title">Support My Development</string>
+     <string name="request_sponsorship_message">Most of the content in this software is developed and maintained by me alone. If you find this software helpful and are in a position to do so, I hope you will consider sponsoring me to give me more motivation to continue developing and improving it. Thank you for your support!</string>
++
++    <!-- Mabar hotspot + cape -->
++    <string name="option_mabar">Mabar Hotspot</string>
++    <string name="mabar_title">Mabar Hotspot</string>
++    <string name="mabar_close">Close</string>
++    <string name="mabar_copy_ip">Copy my IP</string>
++    <string name="mabar_copied">IP %1$s copied</string>
++    <string name="mabar_your_ip">This phone\'s IP: %1$s</string>
++    <string name="mabar_no_network">No local network found. Turn on the hotspot, or connect Wi-Fi to your friend\'s hotspot.</string>
++    <string name="mabar_status_off">Not active. It starts automatically when the game launches with an offline account and the option is on.</string>
++    <string name="mabar_status_hosting">Your LAN world is active on port %1$d. Friends just open Multiplayer and pick \"Mabar Hotspot\", no need to type an IP.</string>
++    <string name="mabar_status_found">Hotspot host found: %1$s:%2$d</string>
++    <string name="mabar_ping">Ping to host: %1$d ms</string>
++    <string name="mabar_status_searching">Looking for a host... Host: open a world, press Esc, then Open to LAN. Friends: connect Wi-Fi to the host\'s hotspot.</string>
++    <string name="mabar_status_links">Connections through Mabar: %1$d</string>
++    <string name="mabar_status_skins">Synced skins/capes: %1$s</string>
++    <string name="setting_mabar_title">Mabar Hotspot</string>
++    <string name="setting_mabar_desc">Auto-detect LAN worlds over a hotspot and sync skins/capes (applies on the next launch, offline accounts only)</string>
++    <string name="account_cape_pick">Choose cape</string>
++    <string name="account_cape_remove">Remove cape</string>
++    <string name="account_cape_invalid">Invalid cape. Pick a PNG of 64x32 (or 22x17 / 46x22).</string>
++    <string name="account_cape_saved">Cape saved. It will appear in game on the next launch.</string>
++    <string name="account_cape_removed">Custom cape removed.</string>
++    <string name="account_skin_preview_hint">Tap the preview to flip front/back</string>
+ </resources>

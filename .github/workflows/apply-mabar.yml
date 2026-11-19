@@ -1,0 +1,32 @@
+name: Apply Mabar patch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pasang patch di branch baru
+        run: |
+          test -f mabar.patch || { echo "mabar.patch tidak ada di root repo. Upload dulu ke branch main."; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b mabar-hotspot
+          git apply --binary mabar.patch
+          rm mabar.patch
+          git add -A
+          git commit -m "Tambah Mabar hotspot, sinkron skin/cape, tukar cape, preview skin"
+          git push --force origin mabar-hotspot
+
+      - name: Jalankan build APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run android.yml --ref mabar-hotspot

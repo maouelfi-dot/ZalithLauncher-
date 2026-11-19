@@ -41,6 +41,7 @@ import com.movtery.zalithlauncher.R;
 import com.movtery.zalithlauncher.context.ContextExecutor;
 import com.movtery.zalithlauncher.databinding.ActivityGameBinding;
 import com.movtery.zalithlauncher.databinding.ViewControlMenuBinding;
+import com.movtery.zalithlauncher.feature.mabar.MabarDialog;
 import com.movtery.zalithlauncher.databinding.ViewGameMenuBinding;
 import com.movtery.zalithlauncher.event.single.RefreshHotbarEvent;
 import com.movtery.zalithlauncher.event.value.HotbarChangeEvent;
@@ -578,6 +579,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             this.binding.forceClose.setOnClickListener(this);
             this.binding.logOutput.setOnClickListener(this);
             this.binding.sendCustomKey.setOnClickListener(this);
+            this.binding.mabarStatus.setOnClickListener(this);
             this.binding.openMemoryInfo.setOnCheckedChangeListener(this);
             this.binding.openMemoryInfoLayout.setOnClickListener(this);
             this.binding.openFpsInfo.setOnCheckedChangeListener(this);
@@ -689,6 +691,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             if (v == binding.forceClose) ZHTools.dialogForceClose(MainActivity.this);
             else if (v == binding.logOutput) MainActivity.binding.mainLoggerView.toggleViewWithAnim();
             else if (v == binding.sendCustomKey) dialogSendCustomKey();
+            else if (v == binding.mabarStatus) MabarDialog.show(MainActivity.this);
             else if (v == binding.openMemoryInfoLayout) MenuUtils.toggleSwitchState(binding.openMemoryInfo);
             else if (v == binding.openFpsInfoLayout) MenuUtils.toggleSwitchState(binding.openFpsInfo);
             else if (v == binding.hideMenuButtonLayout) MenuUtils.toggleSwitchState(binding.hideMenuButton);

@@ -13,7 +13,7 @@ object SkinPreview {
 
     @JvmStatic
     @JvmOverloads
-    fun renderFront(file: File, slim: Boolean, scale: Int = 8, back: Boolean = false): Bitmap? {
+    fun renderFront(file: File, slim: Boolean, scale: Int = 8, back: Boolean = false, capeFile: File? = null): Bitmap? {
         if (!file.isFile) return null
         val skin = runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull() ?: return null
         if (skin.width != 64 || (skin.height != 64 && skin.height != 32)) return null
@@ -54,6 +54,25 @@ object SkinPreview {
             part(if (back) 48 + 8 + armW else 52, 52, armW, 12, if (back) 4 - armW else 12, 8)
             part(if (back) 12 else 4, 36, 4, 12, if (back) 8 else 4, 20)
             part(if (back) 12 else 4, 52, 4, 12, if (back) 4 else 8, 20)
+        }
+        // Cape terlihat di tampak belakang: sisi luar cape ada di (1,1)-(11,17) pada skala dasarnya
+        if (back && capeFile != null && capeFile.isFile) {
+            val cape = runCatching { BitmapFactory.decodeFile(capeFile.absolutePath) }.getOrNull()
+            if (cape != null) {
+                val w = cape.width
+                val h = cape.height
+                val s = when {
+                    h * 2 == w && w % 64 == 0 -> w / 64
+                    h * 22 == w * 17 && w % 22 == 0 -> w / 22
+                    h * 46 == w * 22 && w % 46 == 0 -> w / 46
+                    else -> 0
+                }
+                if (s > 0) {
+                    c.drawBitmap(cape, Rect(s, s, 11 * s, 17 * s),
+                        Rect(3 * scale, 8 * scale, 13 * scale, 24 * scale), paint)
+                }
+                cape.recycle()
+            }
         }
         skin.recycle()
         return out

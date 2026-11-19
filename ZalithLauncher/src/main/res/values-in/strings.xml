@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="option_mabar">Mabar Hotspot</string>
+    <string name="mabar_title">Mabar Hotspot</string>
+    <string name="mabar_close">Tutup</string>
+    <string name="mabar_copy_ip">Salin IP saya</string>
+    <string name="mabar_copied">IP %1$s disalin</string>
+    <string name="mabar_your_ip">IP HP ini: %1$s</string>
+    <string name="mabar_no_network">Jaringan lokal tidak ditemukan. Nyalakan hotspot, atau sambungkan Wi-Fi ke hotspot teman.</string>
+    <string name="mabar_status_off">Belum aktif. Aktif otomatis saat game dibuka dengan akun offline dan opsinya menyala.</string>
+    <string name="mabar_status_hosting">Dunia LAN kamu aktif di port %1$d. Teman cukup buka Multiplayer lalu pilih \"Mabar Hotspot\", tanpa ketik IP.</string>
+    <string name="mabar_status_found">Host hotspot ditemukan: %1$s:%2$d</string>
+    <string name="mabar_ping">Ping ke host: %1$d ms</string>
+    <string name="mabar_status_searching">Mencari host... Host: buka dunia, tekan Esc, lalu Open to LAN. Teman: sambungkan Wi-Fi ke hotspot host.</string>
+    <string name="mabar_status_links">Tersambung lewat Mabar: %1$d</string>
+    <string name="mabar_status_skins">Skin/cape tersinkron: %1$s</string>
+    <string name="setting_mabar_title">Mabar Hotspot</string>
+    <string name="setting_mabar_desc">Deteksi otomatis dunia LAN lewat hotspot dan sinkron skin/cape (berlaku di peluncuran berikutnya, khusus akun offline)</string>
+    <string name="account_cape_pick">Pilih cape</string>
+    <string name="account_cape_remove">Hapus cape</string>
+    <string name="account_cape_invalid">Cape tidak valid. Pilih PNG 64x32 (atau 22x17 / 46x22).</string>
+    <string name="account_cape_saved">Cape disimpan. Akan terlihat di game pada peluncuran berikutnya.</string>
+    <string name="account_cape_removed">Cape kustom dihapus.</string>
+    <string name="account_skin_preview_hint">Ketuk pratinjau untuk membalik depan/belakang</string>
+</resources>

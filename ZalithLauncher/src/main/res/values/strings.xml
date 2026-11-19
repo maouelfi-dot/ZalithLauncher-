@@ -707,4 +707,28 @@
     <!-- Sponsorship Related -->
     <string name="request_sponsorship_title">Support My Development</string>
     <string name="request_sponsorship_message">Most of the content in this software is developed and maintained by me alone. If you find this software helpful and are in a position to do so, I hope you will consider sponsoring me to give me more motivation to continue developing and improving it. Thank you for your support!</string>
+
+    <!-- Mabar hotspot + cape -->
+    <string name="option_mabar">Mabar Hotspot</string>
+    <string name="mabar_title">Mabar Hotspot</string>
+    <string name="mabar_close">Close</string>
+    <string name="mabar_copy_ip">Copy my IP</string>
+    <string name="mabar_copied">IP %1$s copied</string>
+    <string name="mabar_your_ip">This phone\'s IP: %1$s</string>
+    <string name="mabar_no_network">No local network found. Turn on the hotspot, or connect Wi-Fi to your friend\'s hotspot.</string>
+    <string name="mabar_status_off">Not active. It starts automatically when the game launches with an offline account and the option is on.</string>
+    <string name="mabar_status_hosting">Your LAN world is active on port %1$d. Friends just open Multiplayer and pick \"Mabar Hotspot\", no need to type an IP.</string>
+    <string name="mabar_status_found">Hotspot host found: %1$s:%2$d</string>
+    <string name="mabar_ping">Ping to host: %1$d ms</string>
+    <string name="mabar_status_searching">Looking for a host... Host: open a world, press Esc, then Open to LAN. Friends: connect Wi-Fi to the host\'s hotspot.</string>
+    <string name="mabar_status_links">Connections through Mabar: %1$d</string>
+    <string name="mabar_status_skins">Synced skins/capes: %1$s</string>
+    <string name="setting_mabar_title">Mabar Hotspot</string>
+    <string name="setting_mabar_desc">Auto-detect LAN worlds over a hotspot and sync skins/capes (applies on the next launch, offline accounts only)</string>
+    <string name="account_cape_pick">Choose cape</string>
+    <string name="account_cape_remove">Remove cape</string>
+    <string name="account_cape_invalid">Invalid cape. Pick a PNG of 64x32 (or 22x17 / 46x22).</string>
+    <string name="account_cape_saved">Cape saved. It will appear in game on the next launch.</string>
+    <string name="account_cape_removed">Custom cape removed.</string>
+    <string name="account_skin_preview_hint">Tap the preview to flip front/back</string>
 </resources>

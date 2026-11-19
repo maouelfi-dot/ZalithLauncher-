@@ -130,9 +130,34 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
             target.writeBytes(bytes)
             Toast.makeText(ctx, R.string.account_skin_saved, Toast.LENGTH_LONG).show()
             reloadAccounts()
+            showSkinDialog(account)
         }.onFailure { e ->
             Logging.e(TAG, "Failed to import skin: ${e.message}")
             Toast.makeText(ctx, R.string.account_skin_invalid, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Offline account that is currently choosing a custom cape */
+    private var mCapeTargetAccount: MinecraftAccount? = null
+    private val mCapePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        val account = mCapeTargetAccount
+        mCapeTargetAccount = null
+        if (uri == null || account == null) return@registerForActivityResult
+        val ctx = requireContext()
+        runCatching {
+            val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("cannot read file")
+            if (bytes.size > 2 * 1024 * 1024 || !OfflineSkinServer.isValidCape(bytes)) {
+                Toast.makeText(ctx, R.string.account_cape_invalid, Toast.LENGTH_LONG).show()
+                return@runCatching
+            }
+            val target = OfflineSkinServer.capeFileOf(account)
+            target.parentFile?.mkdirs()
+            target.writeBytes(bytes)
+            Toast.makeText(ctx, R.string.account_cape_saved, Toast.LENGTH_LONG).show()
+            showSkinDialog(account)
+        }.onFailure { e ->
+            Logging.e(TAG, "Failed to import cape: ${e.message}")
+            Toast.makeText(ctx, R.string.account_cape_invalid, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -170,7 +195,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
         }
         var showBack = false
         fun refreshPreview() {
-            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack)
+            val bmp = SkinPreview.renderFront(OfflineSkinServer.skinFileOf(account), models[selected] == "slim", 8, showBack, OfflineSkinServer.capeFileOf(account))
             if (bmp != null) preview.setImageBitmap(bmp) else preview.setImageDrawable(null)
         }
         preview.setOnClickListener { showBack = !showBack; refreshPreview() }
@@ -179,15 +204,28 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
             refreshPreview()
         }
         refreshPreview()
+        val capePick = android.widget.Button(ctx).apply { setText(R.string.account_cape_pick) }
+        val capeRemove = android.widget.Button(ctx).apply { setText(R.string.account_cape_remove) }
+        val hint = android.widget.TextView(ctx).apply {
+            setText(R.string.account_skin_preview_hint)
+            setPadding(px(4), px(8), px(4), 0)
+        }
+        val right = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(group)
+            addView(capePick)
+            addView(capeRemove)
+            addView(hint)
+        }
         val content = android.widget.LinearLayout(ctx).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(px(24), px(12), px(24), px(4))
             addView(preview)
-            addView(group)
+            addView(right)
         }
 
-        AlertDialog.Builder(ctx)
+        val skinDialog = AlertDialog.Builder(ctx)
             .setTitle(R.string.account_change_skin)
             .setView(android.widget.ScrollView(ctx).apply { addView(content) })
             .setPositiveButton(R.string.account_skin_pick_file) { _, _ ->
@@ -204,7 +242,20 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
                 Toast.makeText(ctx, R.string.account_skin_reset, Toast.LENGTH_SHORT).show()
                 reloadAccounts()
             }
-            .show()
+            .create()
+
+        capePick.setOnClickListener {
+            OfflineSkinServer.setModel(account, models[selected])
+            mCapeTargetAccount = account
+            skinDialog.dismiss()
+            mCapePicker.launch(arrayOf("image/png"))
+        }
+        capeRemove.setOnClickListener {
+            OfflineSkinServer.resetCape(account)
+            Toast.makeText(ctx, R.string.account_cape_removed, Toast.LENGTH_SHORT).show()
+            refreshPreview()
+        }
+        skinDialog.show()
     }
 
     override fun onCreateView(
@@ -262,6 +313,7 @@ class AccountFragment : FragmentWithAnim(R.layout.fragment_account), View.OnClic
                         if (accountFile.exists()) FileUtils.deleteQuietly(accountFile)
                         if (userSkinFile.exists()) FileUtils.deleteQuietly(userSkinFile)
                         File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".model").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
+                        File(PathManager.DIR_USER_SKIN, account.uniqueUUID + ".cape.png").takeIf { it.exists() }?.let { FileUtils.deleteQuietly(it) }
                         reloadAccounts()
                     }.showDialog()
             }

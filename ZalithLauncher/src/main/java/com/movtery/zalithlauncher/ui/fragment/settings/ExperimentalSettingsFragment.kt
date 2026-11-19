@@ -37,6 +37,13 @@ class ExperimentalSettingsFragment :
 
         SwitchSettingsWrapper(
             context,
+            AllSettings.mabarLan,
+            binding.mabarLanLayout,
+            binding.mabarLan
+        )
+
+        SwitchSettingsWrapper(
+            context,
             AllSettings.bigCoreAffinity,
             binding.bigCoreAffinityLayout,
             binding.bigCoreAffinity

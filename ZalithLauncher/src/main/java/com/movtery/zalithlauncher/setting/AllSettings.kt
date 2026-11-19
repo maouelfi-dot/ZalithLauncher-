@@ -190,6 +190,10 @@ class AllSettings {
         @JvmStatic
         val dumpShaders = BooleanSettingUnit("dump_shaders", false)
 
+        // Mabar (LAN lewat hotspot + sinkron skin/cape)
+        @JvmStatic
+        val mabarLan = BooleanSettingUnit("mabarLan", true)
+
         @JvmStatic
         val bigCoreAffinity = BooleanSettingUnit("bigCoreAffinity", false)
 

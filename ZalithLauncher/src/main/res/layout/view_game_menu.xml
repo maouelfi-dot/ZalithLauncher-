@@ -74,6 +74,18 @@
                 android:paddingHorizontal="@dimen/_8sdp"
                 app:ripple_for_text="true"/>
 
+            <com.movtery.zalithlauncher.ui.view.AnimTextView
+                android:id="@+id/mabar_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_8sdp"
+                android:background="@drawable/background_item"
+                android:text="@string/option_mabar"
+                android:gravity="center_horizontal"
+                android:paddingVertical="@dimen/_12sdp"
+                android:paddingHorizontal="@dimen/_8sdp"
+                app:ripple_for_text="true"/>
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/_1sdp"

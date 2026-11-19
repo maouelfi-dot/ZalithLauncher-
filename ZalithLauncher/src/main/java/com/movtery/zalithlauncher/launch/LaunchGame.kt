@@ -10,6 +10,9 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.event.single.AccountUpdateEvent
 import com.movtery.zalithlauncher.feature.accounts.AccountType
 import com.movtery.zalithlauncher.feature.accounts.AccountUtils
+import com.movtery.zalithlauncher.feature.accounts.OfflineSkinServer
+import com.movtery.zalithlauncher.feature.mabar.MabarAccount
+import com.movtery.zalithlauncher.feature.mabar.MabarLan
 import com.movtery.zalithlauncher.feature.accounts.AccountsManager
 import com.movtery.zalithlauncher.feature.log.Logging
 import com.movtery.zalithlauncher.feature.version.Version
@@ -38,6 +41,7 @@ import net.kdt.pojavlaunch.tasks.MinecraftDownloader
 import net.kdt.pojavlaunch.utils.JREUtils
 import net.kdt.pojavlaunch.value.MinecraftAccount
 import org.greenrobot.eventbus.EventBus
+import java.io.File
 
 class LaunchGame {
     companion object {
@@ -241,9 +245,30 @@ class LaunchGame {
                 launchClassPath
             ).getAllArgs()
 
+            // Mabar: siaran LAN hotspot + sinkron skin/cape (hanya akun offline)
+            startMabar(activity, account, minecraftVersion.getGameDir())
+
             FFmpegPlugin.discover(activity)
 
             JREUtils.launchWithUtils(activity, runtime, minecraftVersion, launchArgs, customArgs)
+        }
+
+        private fun startMabar(activity: AppCompatActivity, account: MinecraftAccount, gameDir: File) {
+            if (!AccountUtils.isNoLoginRequired(account)) return
+            runCatching {
+                MabarLan.start(
+                    activity.applicationContext,
+                    gameDir,
+                    MabarAccount(
+                        username = account.username,
+                        profileId = account.profileId,
+                        skinFile = OfflineSkinServer.skinFileOf(account),
+                        capeFile = OfflineSkinServer.capeFileOf(account),
+                        slim = OfflineSkinServer.isSlim(account)
+                    ),
+                    OfflineSkinServer
+                )
+            }.onFailure { Logging.e("Mabar", "Gagal memulai Mabar: ${it.message}") }
         }
 
         private fun checkMemory(activity: AppCompatActivity) {
